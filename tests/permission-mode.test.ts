@@ -88,7 +88,7 @@ test("real permission plugin: modes, refresh, saving, cleanup and both load orde
           if (!patchFirst) enhancePatches(pi.api);
           flags[mode] = true;
           await pi.fire("session_start", { reason: "start" }, ctx);
-          assert.equal(statuses.get("pi-permission-system"), `${mode} (temporary)`);
+          assert.equal(statuses.get("pi-permission-system"), `${mode}`);
           const service = findPermissionService(ctx.sessionManager.getSessionId()) as {
             registerAuthorizer: (name: string, fn: () => Promise<{ kind: "allow" }>) => () => void;
             session: { configStore: { current: () => { yoloMode: boolean }; save: (next: unknown, ctx: unknown) => void } };
@@ -114,24 +114,24 @@ test("real permission plugin: modes, refresh, saving, cleanup and both load orde
           store.save({ ...store.current(), debugLog: true }, ctx);
           assert.equal(JSON.parse(readFileSync(configPath, "utf8")).yoloMode, persistedYolo);
           assert.equal(store.current().yoloMode, mode === "yolo");
-          assert.equal(statuses.get("pi-permission-system"), `${mode} (temporary)`);
+          assert.equal(statuses.get("pi-permission-system"), `${mode}`);
           const command = pi.commands.get("permission");
           assert.ok(command);
           const savedBeforeCommands = readFileSync(configPath, "utf8");
           for (const next of ["deny", "yolo", "ask"] as const) {
             await command.handler(next, ctx);
-            assert.equal(statuses.get("pi-permission-system"), `${next} (temporary)`);
+            assert.equal(statuses.get("pi-permission-system"), `${next}`);
             await pi.fire("before_agent_start", { systemPrompt: "", systemPromptOptions: { sections: {}, skills: [] } }, ctx);
-            assert.equal(statuses.get("pi-permission-system"), `${next} (temporary)`);
+            assert.equal(statuses.get("pi-permission-system"), `${next}`);
             const result = await pi.fire("tool_call", { toolName: "bash", toolCallId: `switch-${next}`, input: { command: "pwd" } }, ctx);
             if (next === "deny") assert.equal((result as { block: boolean }).block, true);
             else assert.deepEqual(result, {});
           }
           idle = false;
           await command.handler("yolo", ctx);
-          assert.equal(statuses.get("pi-permission-system"), "yolo (temporary)");
+          assert.equal(statuses.get("pi-permission-system"), "yolo");
           await command.handler("invalid", ctx);
-          assert.equal(statuses.get("pi-permission-system"), "yolo (temporary)");
+          assert.equal(statuses.get("pi-permission-system"), "yolo");
           await command.handler("default", ctx);
           assert.equal(store.current().yoloMode, persistedYolo);
           assert.equal(statuses.get("pi-permission-system"), persistedYolo ? "yolo" : undefined);
@@ -143,7 +143,7 @@ test("real permission plugin: modes, refresh, saving, cleanup and both load orde
           assert.equal(prompts.length, promptsBeforeDefault);
           assert.equal(autoCalls, persistedYolo ? 0 : 1);
           await command.handler("", ctx);
-          assert.equal(statuses.get("pi-permission-system"), "ask (temporary)");
+          assert.equal(statuses.get("pi-permission-system"), "ask");
           await command.handler("show", ctx);
           assert.equal(readFileSync(configPath, "utf8"), savedBeforeCommands);
           await pi.fire("session_shutdown", {}, ctx);
@@ -218,9 +218,9 @@ test("slash command enables temporary mode without CLI flags and resets without 
     await command.handler("yolo", ctx);
     assert.equal(service.session.configStore.current().yoloMode, true);
     await command.handler("", ctx); // Cancel the picker without changing mode.
-    assert.equal(statuses.get("pi-permission-system"), "yolo (temporary)");
+    assert.equal(statuses.get("pi-permission-system"), "yolo");
     await command.handler("show", ctx);
-    assert.match(notices.at(-1) ?? "", /yolo \(temporary\).*YOLO on/);
+    assert.match(notices.at(-1) ?? "", /yolo.*YOLO on/);
     await command.handler("default", ctx);
     assert.equal(service.session.configStore.current, current);
     assert.equal(statuses.get("pi-permission-system"), undefined);
@@ -288,7 +288,7 @@ test("busy default sessions switch modes for new requests without resolving exis
   assert.equal(service.session.configStore.current().yoloMode, false);
   const old = await waitingApproval("before-switch");
   await permission.handler("yolo", ctx);
-  assert.equal(statuses.get("pi-permission-system"), "yolo (temporary)");
+  assert.equal(statuses.get("pi-permission-system"), "yolo");
   assert.deepEqual(await call("new-yolo"), {});
   assert.equal(dialogs.length, 1);
   assert.equal(old.finished(), false);

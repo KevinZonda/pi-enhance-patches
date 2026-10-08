@@ -94,7 +94,7 @@ export function registerPermissionSystemPatches(pi: ExtensionAPI): void {
           try { effective = `; effective YOLO ${getEffectiveYoloMode(candidate) ? "on" : "off"}`; }
           catch { effective = "; permission plugin incompatible"; }
         }
-        ctx.ui.notify(`Permission: ${mode ? `${mode} (temporary)` : "default (configuration)"}${effective}${mode && !restore ? `; blocked: ${failure}` : ""}`, "info");
+        ctx.ui.notify(`Permission: ${mode ?? "default (configuration)"}${effective}${mode && !restore ? `; blocked: ${failure}` : ""}`, "info");
       }
       let action = args.trim().toLowerCase();
       if (!action) {

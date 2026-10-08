@@ -70,7 +70,7 @@ test("merged package times out questions while leaving a real permission approva
   let effectiveCurrent: (() => unknown) | undefined;
   try {
     await fire("session_start", { reason: "start" });
-    assert.equal(status.get("pi-permission-system"), "ask (temporary)");
+    assert.equal(status.get("pi-permission-system"), "ask");
     store = (findPermissionService("combined") as any).session.configStore;
     effectiveCurrent = store!.current;
     const permission = fire("tool_call", { toolName: "bash", toolCallId: "approval", input: { command: "pwd" } });
@@ -90,7 +90,7 @@ test("merged package times out questions while leaving a real permission approva
     assert.equal((await question).details.timedOut, true);
     assert.equal(permissionResolved, false);
     assert.equal(h.stack.length, 0);
-    assert.equal(status.get("pi-permission-system"), "ask (temporary)");
+    assert.equal(status.get("pi-permission-system"), "ask");
     approve("Yes");
     assert.deepEqual(await permission, {});
   } finally {

@@ -49,7 +49,7 @@ export function installPermissionMode(service: unknown, mode: PermissionMode): (
   function status(ctx: unknown): void {
     if (ctx === null || typeof ctx !== "object") return;
     const ui = object((ctx as RuntimeObject).ui, "UI");
-    method(ui, "setStatus").call(ui, "pi-permission-system", `${mode} (temporary)`);
+    method(ui, "setStatus").call(ui, "pi-permission-system", mode);
   }
   try {
     replace(config, "current", function () {
