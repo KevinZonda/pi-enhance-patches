@@ -129,10 +129,9 @@ test("real permission plugin: modes, refresh, saving, cleanup and both load orde
           }
           idle = false;
           await command.handler("yolo", ctx);
-          assert.equal(statuses.get("pi-permission-system"), "ask (temporary)");
-          idle = true;
+          assert.equal(statuses.get("pi-permission-system"), "yolo (temporary)");
           await command.handler("invalid", ctx);
-          assert.equal(statuses.get("pi-permission-system"), "ask (temporary)");
+          assert.equal(statuses.get("pi-permission-system"), "yolo (temporary)");
           await command.handler("default", ctx);
           assert.equal(store.current().yoloMode, persistedYolo);
           assert.equal(statuses.get("pi-permission-system"), persistedYolo ? "yolo" : undefined);
@@ -230,4 +229,92 @@ test("slash command enables temporary mode without CLI flags and resets without 
     await pi.fire("session_shutdown", {}, ctx);
     if (previous === undefined) delete globals[key]; else globals[key] = previous;
   }
+});
+
+test("busy default sessions switch modes for new requests without resolving existing approval dialogs", async t => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-permission-busy-"));
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = dir;
+  const path = join(dir, "extensions/pi-permission-system/config.json");
+  mkdirSync(dirname(path), { recursive: true });
+  const saved = JSON.stringify({ yoloMode: false, authorizerChain: [], permission: {
+    "*": "allow", bash: { "*": "ask", "forbidden *": "deny", "echo *": "allow" },
+  } });
+  writeFileSync(path, saved);
+  const pi = fakePi();
+  const statuses = new Map<string, unknown>();
+  const notices: string[] = [];
+  const dialogs: Array<{ answer(value: string): void }> = [];
+  let opened: (() => void) | undefined;
+  const ctx = {
+    cwd: dir, hasUI: true, isIdle: () => false, isProjectTrusted: () => true,
+    sessionManager: { getSessionId: () => "busy-default", getSessionDir: () => dir,
+      getEntries: () => [], getSessionName: () => undefined },
+    ui: {
+      setStatus: (name: string, value: unknown) => statuses.set(name, value),
+      notify: (message: string) => notices.push(message),
+      select: async () => new Promise<string>(resolve => {
+        dialogs.push({ answer: resolve });
+        opened?.();
+      }),
+      input: async () => undefined,
+    },
+  };
+  originalPlugin(pi.api);
+  enhancePatches(pi.api);
+  const tasks: Promise<unknown>[] = [];
+  t.after(async () => {
+    for (const dialog of dialogs) dialog.answer("No");
+    await Promise.allSettled(tasks);
+    await pi.fire("session_shutdown", {}, ctx);
+    if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = previous;
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const call = (id: string, command = "pwd") => pi.fire("tool_call", { toolName: "bash", toolCallId: id, input: { command } }, ctx);
+  async function waitingApproval(id: string) {
+    const ready = new Promise<void>(resolve => { opened = resolve; });
+    const result = call(id);
+    tasks.push(result);
+    await Promise.race([ready, result.then(value => { throw new Error(`Expected approval dialog: ${JSON.stringify(value)}`); })]);
+    opened = undefined;
+    let finished = false;
+    void result.then(() => { finished = true; });
+    return { result, finished: () => finished, dialog: dialogs.at(-1)! };
+  }
+  await pi.fire("session_start", {}, ctx);
+  const service = findPermissionService("busy-default") as any;
+  const baseline = service.session.configStore.current;
+  const permission = pi.commands.get("permission")!;
+  assert.equal(service.session.configStore.current().yoloMode, false);
+  const old = await waitingApproval("before-switch");
+  await permission.handler("yolo", ctx);
+  assert.equal(statuses.get("pi-permission-system"), "yolo (temporary)");
+  assert.deepEqual(await call("new-yolo"), {});
+  assert.equal(dialogs.length, 1);
+  assert.equal(old.finished(), false);
+  await permission.handler("deny", ctx);
+  assert.equal((await call("new-deny") as { block: boolean }).block, true);
+  assert.equal(dialogs.length, 1);
+  assert.equal(old.finished(), false);
+  await permission.handler("ask", ctx);
+  // Resolve the original dialog as a real user would; subsequent asks use the
+  // newly selected mode, even though the agent remains busy throughout.
+  assert.equal(old.finished(), false);
+  old.dialog.answer("Yes");
+  assert.deepEqual(await old.result, {});
+  const next = await waitingApproval("new-ask");
+  await permission.handler("default", ctx);
+  assert.equal(service.session.configStore.current, baseline);
+  assert.equal(statuses.get("pi-permission-system"), undefined);
+  assert.equal(next.finished(), false);
+  next.dialog.answer("No");
+  assert.equal((await next.result as { block: boolean }).block, true);
+  const restored = await waitingApproval("new-default");
+  restored.dialog.answer("Yes");
+  assert.deepEqual(await restored.result, {});
+  await permission.handler("yolo", ctx);
+  assert.equal((await call("explicit-deny", "forbidden operation") as { block: boolean }).block, true);
+  assert.deepEqual(await call("explicit-allow", "echo ok"), {});
+  assert.equal(readFileSync(path, "utf8"), saved);
+  assert.ok(!notices.some(message => message.includes("agent is idle")));
 });

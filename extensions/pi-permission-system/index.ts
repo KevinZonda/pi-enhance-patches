@@ -109,10 +109,6 @@ export function registerPermissionSystemPatches(pi: ExtensionAPI): void {
         ctx.ui.notify("Usage: /permission [yolo|ask|deny|default|show]", "warning");
         return;
       }
-      if (!ctx.isIdle()) {
-        ctx.ui.notify("Change permission mode when the agent is idle.", "warning");
-        return;
-      }
       if (action !== "default" && !candidate) {
         ctx.ui.notify("Permission plugin unavailable; mode unchanged.", "error");
         return;

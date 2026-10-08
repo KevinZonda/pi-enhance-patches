@@ -1,6 +1,6 @@
 {
   "name": "pi-enhance-patches",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Runtime enhancements for Pi extensions: temporary permission modes and questionnaire idle timeouts.",
   "type": "module",
   "license": "MIT",
