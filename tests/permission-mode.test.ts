@@ -73,12 +73,14 @@ test("real permission plugin: modes, refresh, saving, cleanup and both load orde
         const pi = fakePi(flags);
         const statuses = new Map<string, string | undefined>();
         const prompts: string[] = [];
+        let idle = true;
         const ctx = {
           cwd: dir, hasUI: true, isProjectTrusted: () => true,
+          isIdle: () => idle,
           sessionManager: { getSessionId: () => `session-${mode}-${patchFirst}`, getSessionDir: () => dir,
             getEntries: () => [], getSessionName: () => undefined },
           ui: { setStatus: (key: string, value: string | undefined) => statuses.set(key, value), notify: () => {},
-            select: async (title: string) => { prompts.push(title); return "Yes"; }, input: async () => undefined },
+            select: async (title: string) => { prompts.push(title); return title === "Temporary permission mode" ? "ask" : "Yes"; }, input: async () => undefined },
         };
         try {
           if (patchFirst) enhancePatches(pi.api);
@@ -113,6 +115,38 @@ test("real permission plugin: modes, refresh, saving, cleanup and both load orde
           assert.equal(JSON.parse(readFileSync(configPath, "utf8")).yoloMode, persistedYolo);
           assert.equal(store.current().yoloMode, mode === "yolo");
           assert.equal(statuses.get("pi-permission-system"), `${mode} (temporary)`);
+          const command = pi.commands.get("permission");
+          assert.ok(command);
+          const savedBeforeCommands = readFileSync(configPath, "utf8");
+          for (const next of ["deny", "yolo", "ask"] as const) {
+            await command.handler(next, ctx);
+            assert.equal(statuses.get("pi-permission-system"), `${next} (temporary)`);
+            await pi.fire("before_agent_start", { systemPrompt: "", systemPromptOptions: { sections: {}, skills: [] } }, ctx);
+            assert.equal(statuses.get("pi-permission-system"), `${next} (temporary)`);
+            const result = await pi.fire("tool_call", { toolName: "bash", toolCallId: `switch-${next}`, input: { command: "pwd" } }, ctx);
+            if (next === "deny") assert.equal((result as { block: boolean }).block, true);
+            else assert.deepEqual(result, {});
+          }
+          idle = false;
+          await command.handler("yolo", ctx);
+          assert.equal(statuses.get("pi-permission-system"), "ask (temporary)");
+          idle = true;
+          await command.handler("invalid", ctx);
+          assert.equal(statuses.get("pi-permission-system"), "ask (temporary)");
+          await command.handler("default", ctx);
+          assert.equal(store.current().yoloMode, persistedYolo);
+          assert.equal(statuses.get("pi-permission-system"), persistedYolo ? "yolo" : undefined);
+          await pi.fire("before_agent_start", { systemPrompt: "", systemPromptOptions: { sections: {}, skills: [] } }, ctx);
+          assert.equal(store.current().yoloMode, persistedYolo);
+          assert.equal(statuses.get("pi-permission-system"), persistedYolo ? "yolo" : undefined);
+          const promptsBeforeDefault = prompts.length;
+          assert.deepEqual(await pi.fire("tool_call", { toolName: "bash", toolCallId: "default", input: { command: "pwd" } }, ctx), {});
+          assert.equal(prompts.length, promptsBeforeDefault);
+          assert.equal(autoCalls, persistedYolo ? 0 : 1);
+          await command.handler("", ctx);
+          assert.equal(statuses.get("pi-permission-system"), "ask (temporary)");
+          await command.handler("show", ctx);
+          assert.equal(readFileSync(configPath, "utf8"), savedBeforeCommands);
           await pi.fire("session_shutdown", {}, ctx);
           assert.notEqual(store.current, effectiveCurrent);
           assert.equal(store.current().yoloMode, persistedYolo);
@@ -156,4 +190,44 @@ test("incompatible instance is validated before any method is changed", () => {
   const configStore = { current, save: () => {} };
   assert.throws(() => installPermissionMode({ session: { configStore, authorizerSelection: {} } }, "yolo"), /Unsupported/);
   assert.equal(configStore.current, current);
+});
+
+test("slash command enables temporary mode without CLI flags and resets without saving", async () => {
+  const key = Symbol.for("@gotgenes/pi-permission-system:session-services");
+  const globals = globalThis as Record<symbol, unknown>;
+  const previous = globals[key];
+  const statuses = new Map<string, unknown>();
+  const notices: string[] = [];
+  const ctx = { hasUI: true, isIdle: () => true, isProjectTrusted: () => true,
+    sessionManager: { getSessionId: () => "slash-only" },
+    ui: { notify: (message: string) => notices.push(message), setStatus: (name: string, value: unknown) => statuses.set(name, value), select: async () => undefined },
+  };
+  const current = () => ({ yoloMode: false });
+  const service = { session: {
+    configStore: { current, save: () => { throw new Error("Command must not save config"); } },
+    authorizerSelection: { escalate: async () => ({ approved: true }), linksFor: () => ["judge"] },
+    refreshConfig: () => ctx.ui.setStatus("pi-permission-system", undefined), getRuntimeContext: () => ctx,
+  } };
+  globals[key] = new Map([["slash-only", service]]);
+  const pi = fakePi();
+  enhancePatches(pi.api);
+  try {
+    await pi.fire("session_start", {}, ctx);
+    assert.equal(service.session.configStore.current, current);
+    const command = pi.commands.get("permission");
+    assert.ok(command);
+    await command.handler("yolo", ctx);
+    assert.equal(service.session.configStore.current().yoloMode, true);
+    await command.handler("", ctx); // Cancel the picker without changing mode.
+    assert.equal(statuses.get("pi-permission-system"), "yolo (temporary)");
+    await command.handler("show", ctx);
+    assert.match(notices.at(-1) ?? "", /yolo \(temporary\).*YOLO on/);
+    await command.handler("default", ctx);
+    assert.equal(service.session.configStore.current, current);
+    assert.equal(statuses.get("pi-permission-system"), undefined);
+    assert.equal(await pi.fire("tool_call", {}, ctx), undefined);
+  } finally {
+    await pi.fire("session_shutdown", {}, ctx);
+    if (previous === undefined) delete globals[key]; else globals[key] = previous;
+  }
 });

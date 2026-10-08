@@ -93,3 +93,15 @@ export function findPermissionService(sessionId: string): unknown {
   const registry = (globalThis as Record<symbol, unknown>)[key];
   return registry instanceof Map ? registry.get(sessionId) : undefined;
 }
+
+/** Refresh disk configuration and the plugin's own status after removing an override. */
+export function refreshPermissionConfiguration(service: unknown, ctx: unknown, trusted: boolean): void {
+  const session = object(object(service, "service").session, "session");
+  method(session, "refreshConfig").call(session, ctx, trusted);
+}
+
+export function getEffectiveYoloMode(service: unknown): boolean {
+  const session = object(object(service, "service").session, "session");
+  const config = object(session.configStore, "config store");
+  return object(method(config, "current").call(config), "config").yoloMode === true;
+}
