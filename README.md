@@ -1,8 +1,10 @@
 # pi-enhance-patches
 
 Pi 及第三方扩展的独立运行时增强包，不修改被补丁插件的源码。
-首个功能是 `@gotgenes/pi-permission-system` 的临时权限模式。
-已验证 Pi 1.1.0、permission-system 40.0.2。
+包含 `@gotgenes/pi-permission-system` 的临时权限模式与
+`@juicesharp/rpiv-ask-user-question` 的问卷闲置超时。
+两个模块独立启用，目标插件都是可选依赖。
+已验证 Pi 1.1.0、permission-system 40.0.2、rpiv-ask-user-question 2.12.0。
 
 ## 安装
 
@@ -39,13 +41,59 @@ pi --yolo -- "检查这个项目"  # 带初始消息时用 -- 分隔，避免 Pi
 ## 兼容性
 
 补丁按目标插件组织在 `extensions/<插件名>/` 下。
-顶层 `extensions/index.ts` 只负责注册各模块；permission 插件的参数、生命周期与运行时包装均位于 `extensions/pi-permission-system/`。
+顶层 `extensions/index.ts` 只负责注册各模块；权限模块位于
+`extensions/pi-permission-system/`，问卷模块位于 `extensions/rpiv-ask-user-question/`。
 
 通过会话 service 接入共享的配置与审批实例，依赖 permission-system 的内部结构。
 升级原插件后需要重新验证。
 指定参数却找不到兼容实例时，会提示错误并阻止工具调用。
 退出及 `/reload` 时恢复被包装的方法；所有权检查避免旧补丁撤销新实例。
 补丁仅绕过原来的 ask，不绕过明确 deny。
+
+## 问卷闲置超时
+
+需要安装原问卷插件：`pi install npm:@juicesharp/rpiv-ask-user-question`。
+问卷插件与本包的加载顺序均可。默认关闭自动跳过；创建
+`~/.pi/agent/pi-enhance-patches-asks.json`：
+
+```json
+{
+  "askUserTimeoutMs": 60000
+}
+```
+
+表示闲置 60 秒后跳过。`0` 关闭；正数取整并限制为 1000–86400000ms。
+未配置或无效值关闭超时；损坏文件关闭超时并在启动时提示。
+设置 `PI_CODING_AGENT_DIR` 时从该目录读取配置。
+修改后执行 `/reload`，`/askpatches` 查看配置。
+
+- 计时从问卷组件准备好开始，输入、编辑和切换选项会重新计时。
+- 外部编辑器打开、问卷折叠隐藏或被其他浮窗覆盖时暂停计时。
+- 超时通过 Pi 原生回调关闭问卷并清理等待状态，不提交未确认的选择或草稿。
+- 模型收到明确的“未回答、超时跳过”，不是“用户拒绝”；不会自动选择或批准选项。
+- 结构化结果包含 `answers: []`、`cancelled: true`、`timedOut: true`、
+  `reason: "idle_timeout"` 和 `timeoutMs`。
+- 正常回答和 Esc 取消保留原结果；中断、退出及重载清理计时器和包装。
+- 保留原插件弹出时的一次 BEL（`\x07`，即 `\a`）。
+- 仅适用于终端 TUI 的 `ask_user_question`，不影响权限审批、RPC/ACP 或 `pi-goal-x` 的问卷。
+
+闲置状态以不超过 250ms 的间隔检查，事件循环忙碌时可能稍晚结束。
+问卷模块包装 Pi 的工具注册读取与该工具每次执行的 UI；
+关闭回调只移除问卷自己的浮窗。升级 Pi 或问卷插件后需要重新验证。
+
+### 从独立 asks 包迁移
+
+问卷功能已从 `pi-enhance-patches-asks` 合并到本包，原配置文件和 `/askpatches` 保持兼容。
+如果安装过独立包，请先通过 `pi remove` 移除其原安装来源，再安装或更新本包并 `/reload`。
+例如独立包使用本地路径安装时：
+
+```bash
+pi remove /Users/kevin/Desktop/cc_plugins/pi-enhance-patches-asks
+```
+
+避免同时加载独立 asks 包与本包。权限模块无需问卷插件；仅启用问卷超时时也无需权限插件。
+
+## 开发检查
 
 ```bash
 npm install
