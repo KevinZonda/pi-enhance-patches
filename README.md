@@ -1,10 +1,11 @@
 # pi-enhance-patches
 
-Pi 及第三方扩展的独立运行时增强包，不修改被补丁插件的源码。
-包含 Pi 的图片粘贴占位标记、`@gotgenes/pi-permission-system` 的临时权限模式与
-`@juicesharp/rpiv-ask-user-question` 的问卷闲置超时。
-三个模块独立启用，两个目标插件都是可选依赖。
-已验证 Pi 1.1.0、permission-system 40.0.2、rpiv-ask-user-question 2.12.0。
+Pi 及第三方扩展的独立增强包。
+图片、权限与问卷使用运行时包装，不修改目标源码；后台任务目录使用启动 autopatcher，
+会在满足条件时修改已安装插件的文件，补丁也可手动应用，见 [`patches/README.md`](patches/README.md)。
+包含图片粘贴占位标记、临时权限模式、问卷闲置超时与后台任务全局缓存目录。
+四个模块独立启用，第三方插件均可选。
+已验证 Pi 1.1.0、permission-system 40.0.2、rpiv-ask-user-question 2.12.0、pi-background-tasks 2.6.9。
 
 ## 安装
 
@@ -60,7 +61,7 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 补丁按目标插件组织在 `extensions/<插件名>/` 下。
 顶层 `extensions/index.ts` 只负责注册各模块；权限模块位于
 `extensions/pi-permission-system/`，问卷模块位于 `extensions/rpiv-ask-user-question/`，
-图片模块位于 `extensions/pi-image-paste/`。
+图片模块位于 `extensions/pi-image-paste/`，目录 autopatcher 位于 `extensions/pi-background-tasks/`。
 
 通过会话 service 接入共享的配置与审批实例，依赖 permission-system 的内部结构。
 升级原插件后需要重新验证。
@@ -136,6 +137,21 @@ pi remove /Users/kevin/Desktop/cc_plugins/pi-enhance-patches-asks
 ```
 
 避免同时加载独立 asks 包与本包。权限模块无需问卷插件；仅启用问卷超时时也无需权限插件。
+
+## 后台任务目录 autopatcher
+
+启动时检测已加载的 `bg_run` 和 Pi agent 目录中默认 npm 安装的 `pi-background-tasks`。
+仅针对 2.6.9：反向预检确认尚未应用、正向预检通过且文件/目录可写时，
+自动应用 `patches/pi-background-tasks-2.6.9-global-cache.patch`。
+已应用时不重复写入；其他版本、缺少 Git、权限问题或源码不匹配时提示并跳过。
+并发启动使用互斥锁，不删除其他进程的锁；异常退出残留锁需确认进程已结束后手动移除。
+
+补丁将新任务日志写到 Pi agent 目录的 `cache/background-tasks/`，按项目真实路径及会话/进程隔离。
+首次应用后提示 `/reload` 或重启：本次已加载的插件仍可能使用旧目录，不自动重载或中断任务。
+不迁移或删除旧日志，不修改 Fusion 的独立产物目录；升级或重装 2.6.9 后会重新检查并应用。
+非默认 npm 安装位置请手动应用。设置 `PI_ENHANCE_BACKGROUND_AUTOPATCH=0` 可禁用自动修改。
+补丁撤销前先禁用 autopatcher，否则下一次启动会再次应用。
+详细预检、Apply 和 Revert 命令见 [`patches/README.md`](patches/README.md)。
 
 ## 开发检查
 

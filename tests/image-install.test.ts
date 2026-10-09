@@ -21,6 +21,7 @@ test("Git-style install without node_modules loads clipboard helpers from the ru
   });
   const loaded = await loadExtensions([entrypoint], dir, createEventBus());
   assert.deepEqual(loaded.errors, []);
+  loaded.runtime.getAllTools = () => []; // Simulate Pi's binding before session_start; no bg plugin is loaded.
   const prototype = InteractiveMode.prototype as any;
   const original = prototype.handleClipboardPaste;
   const notifications: string[] = [];

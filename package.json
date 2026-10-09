@@ -15,6 +15,7 @@
   },
   "files": [
     "extensions",
+    "patches",
     "README.md",
     "LICENSE"
   ],

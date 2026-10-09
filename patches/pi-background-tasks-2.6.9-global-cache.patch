@@ -1,0 +1,84 @@
+diff --git a/src/core/registry.ts b/src/core/registry.ts
+--- a/src/core/registry.ts
++++ b/src/core/registry.ts
+@@ -1,11 +1,11 @@
+ import { spawn as nodeSpawn, type SpawnOptions } from 'node:child_process';
+-import { randomBytes } from 'node:crypto';
++import { createHash, randomBytes } from 'node:crypto';
+ import { createWriteStream, existsSync } from 'node:fs';
+ import { mkdir, realpath, rm, writeFile } from 'node:fs/promises';
+ import { join } from 'node:path';
+ import type { Api, Model } from '@earendil-works/pi-ai';
+ import type { ExtensionContext } from '@earendil-works/pi-coding-agent';
+-import { formatSize } from '@earendil-works/pi-coding-agent';
++import { formatSize, getAgentDir } from '@earendil-works/pi-coding-agent';
+ import {
+   boundedRead,
+   deriveTaskNameFromCommand,
+@@ -1263,9 +1263,10 @@
+     if (this.runtimeDir) return this.runtimeDir;
+     const sessionId = sanitizePathSegment(ctx.sessionId ?? `session-${String(process.pid)}`);
+     const runId = `${sessionId}-${String(process.pid)}`;
+-    const runtimeDirAbs = join(ctx.cwd, '.pi', 'tasks', runId);
+-    const runtimeDirDisplay = join('.pi', 'tasks', runId);
+-    await mkdir(runtimeDirAbs, { recursive: true });
++    const projectId = createHash('sha256').update(await realpath(ctx.cwd)).digest('hex');
++    const runtimeDirAbs = join(getAgentDir(), 'cache', 'background-tasks', projectId, runId);
++    const runtimeDirDisplay = runtimeDirAbs;
++    await mkdir(runtimeDirAbs, { recursive: true, mode: 0o700 });
+     this.runtimeDir = { abs: runtimeDirAbs, display: runtimeDirDisplay };
+     return this.runtimeDir;
+   }
+diff --git a/dist/src/core/registry.js b/dist/src/core/registry.js
+--- a/dist/src/core/registry.js
++++ b/dist/src/core/registry.js
+@@ -1,9 +1,9 @@
+ import { spawn as nodeSpawn } from 'node:child_process';
+-import { randomBytes } from 'node:crypto';
++import { createHash, randomBytes } from 'node:crypto';
+ import { createWriteStream, existsSync } from 'node:fs';
+ import { mkdir, realpath, rm, writeFile } from 'node:fs/promises';
+ import { join } from 'node:path';
+-import { formatSize } from '@earendil-works/pi-coding-agent';
++import { formatSize, getAgentDir } from '@earendil-works/pi-coding-agent';
+ import { boundedRead, deriveTaskNameFromCommand, escapeXml, formatAgentActivityLine, formatDuration, isJsonObject, normalizeTaskName, parseAgentActivity, parseJsonText, rejectSurvivalForTaskKind, resolveShellPolicy, sanitizePathSegment, shellInvocationForPolicy, shellPolicySnapshot, shellQuote, snapshot, taskDisplayName, ReloadSurvivalError, } from './common.js';
+ import { ATTESTED_GIT_KILL_GRACE_MS, ATTESTED_GIT_MAX_OUTPUT_BYTES, ATTESTED_TASK_ID_PATTERN, } from './attested-pi-contract.js';
+ import { closeAndFsyncOutputStream, writeFileFsynced, writeJsonAtomic } from './task-durable.js';
+@@ -914,9 +914,10 @@
+             return this.runtimeDir;
+         const sessionId = sanitizePathSegment(ctx.sessionId ?? `session-${String(process.pid)}`);
+         const runId = `${sessionId}-${String(process.pid)}`;
+-        const runtimeDirAbs = join(ctx.cwd, '.pi', 'tasks', runId);
+-        const runtimeDirDisplay = join('.pi', 'tasks', runId);
+-        await mkdir(runtimeDirAbs, { recursive: true });
++        const projectId = createHash('sha256').update(await realpath(ctx.cwd)).digest('hex');
++        const runtimeDirAbs = join(getAgentDir(), 'cache', 'background-tasks', projectId, runId);
++        const runtimeDirDisplay = runtimeDirAbs;
++        await mkdir(runtimeDirAbs, { recursive: true, mode: 0o700 });
+         this.runtimeDir = { abs: runtimeDirAbs, display: runtimeDirDisplay };
+         return this.runtimeDir;
+     }
+diff --git a/src/extension.ts b/src/extension.ts
+--- a/src/extension.ts
++++ b/src/extension.ts
+@@ -927,7 +927,7 @@
+   pi.registerTool<typeof BgRunParams, BgRunDetails>({
+     name: 'bg_run',
+     label: 'Background Run',
+-    description: `Start a named long-running shell command in the background and return immediately with a task ID and output path. By default, completed, failed, or killed terminal state is delivered automatically as <background-task-notification> and starts a follow-up agent turn; do not sleep or poll merely to wait. Output is written to .pi/tasks and model-visible logs are bounded to ${formatSize(MAX_LOG_BYTES)}.`,
++    description: `Start a named long-running shell command in the background and return immediately with a task ID and output path. By default, completed, failed, or killed terminal state is delivered automatically as <background-task-notification> and starts a follow-up agent turn; do not sleep or poll merely to wait. Output is written to cache/background-tasks under the Pi agent directory and model-visible logs are bounded to ${formatSize(MAX_LOG_BYTES)}.`,
+     promptSnippet:
+       'Start a named long-running shell command; default terminal notification wakes a follow-up turn, so yield instead of polling',
+     promptGuidelines: [
+diff --git a/dist/src/extension.js b/dist/src/extension.js
+--- a/dist/src/extension.js
++++ b/dist/src/extension.js
+@@ -720,7 +720,7 @@
+     pi.registerTool({
+         name: 'bg_run',
+         label: 'Background Run',
+-        description: `Start a named long-running shell command in the background and return immediately with a task ID and output path. By default, completed, failed, or killed terminal state is delivered automatically as <background-task-notification> and starts a follow-up agent turn; do not sleep or poll merely to wait. Output is written to .pi/tasks and model-visible logs are bounded to ${formatSize(MAX_LOG_BYTES)}.`,
++        description: `Start a named long-running shell command in the background and return immediately with a task ID and output path. By default, completed, failed, or killed terminal state is delivered automatically as <background-task-notification> and starts a follow-up agent turn; do not sleep or poll merely to wait. Output is written to cache/background-tasks under the Pi agent directory and model-visible logs are bounded to ${formatSize(MAX_LOG_BYTES)}.`,
+         promptSnippet: 'Start a named long-running shell command; default terminal notification wakes a follow-up turn, so yield instead of polling',
+         promptGuidelines: [
+             'Use bg_run instead of bash for commands expected to run for a long time, such as test suites, dev servers, watchers, or builds.',
