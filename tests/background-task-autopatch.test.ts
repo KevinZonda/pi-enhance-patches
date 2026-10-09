@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -8,11 +8,14 @@ import { createEventBus, getAgentDir, type ExtensionAPI } from "@earendil-works/
 import { loadExtensions } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js";
 import { applyBackgroundCachePatch, BACKGROUND_CACHE_PATCH, registerBackgroundTaskPatches } from "../extensions/pi-background-tasks/index.ts";
 
+import { copyOriginalBackgroundPackage } from "./background-task-fixture.ts";
+
 const upstream = process.env.PI_BACKGROUND_TASKS_TEST_DIR ?? join(getAgentDir(), "npm/node_modules/pi-background-tasks");
 const manifestPath = join(upstream, "package.json");
 const available = existsSync(manifestPath) && JSON.parse(readFileSync(manifestPath, "utf8")).version === "2.6.9";
-const integration = { skip: available ? false : "Requires an original pi-background-tasks 2.6.9 installation" };
-const files = ["src/core/registry.ts", "dist/src/core/registry.js", "src/extension.ts", "dist/src/extension.js"];
+const integration = { skip: available ? false : "Requires pi-background-tasks 2.6.9" };
+const files = ["src/core/registry.ts", "dist/src/core/registry.js", "src/extension.ts", "dist/src/extension.js",
+  "src/ui/background-tasks-manager.ts", "dist/src/ui/background-tasks-manager.js"];
 const snapshot = (target: string) => files.map(file => readFileSync(join(target, file), "utf8"));
 
 function fixture(t: test.TestContext) {
@@ -35,7 +38,7 @@ test("autopatcher skips missing, malformed and unreviewed package manifests", as
 
 test("autopatcher applies once, respects locks, preserves mismatched files and tolerates missing Git", integration, async t => {
   const target = join(fixture(t), "plugin");
-  cpSync(upstream, target, { recursive: true });
+  copyOriginalBackgroundPackage(upstream, target);
   const original = snapshot(target);
   assert.equal((await applyBackgroundCachePatch(target)).status, "applied");
   const patched = snapshot(target);
@@ -81,7 +84,7 @@ test("autopatcher applies once, respects locks, preserves mismatched files and t
 test("startup does not patch an installed but unloaded background plugin; success notifies once", integration, async t => {
   const dir = fixture(t);
   const target = join(dir, "npm/node_modules/pi-background-tasks");
-  cpSync(upstream, target, { recursive: true });
+  copyOriginalBackgroundPackage(upstream, target);
   const original = snapshot(target);
   const previous = process.env.PI_CODING_AGENT_DIR;
   process.env.PI_CODING_AGENT_DIR = dir;
@@ -104,6 +107,8 @@ test("startup does not patch an installed but unloaded background plugin; succes
   await handler({}, ctx);
   assert.equal(messages.length, 1);
   assert.match(messages[0], /reload or restart/);
+  assert.match(messages[0], /panel close patch applied/);
+  for (const file of files.slice(4)) assert.match(readFileSync(join(target, file), "utf8"), /const key = parseKey\(data\)/);
   await handler({}, ctx);
   assert.equal(messages.length, 1);
 });
@@ -120,7 +125,7 @@ test("real extension loader in either order applies on first startup and loads g
   for (const patchFirst of [true, false]) {
     const agent = join(dir, patchFirst ? "first" : "last");
     const target = join(agent, "npm/node_modules/pi-background-tasks");
-    cpSync(upstream, target, { recursive: true });
+    copyOriginalBackgroundPackage(upstream, target);
     process.env.PI_CODING_AGENT_DIR = agent;
     const cwd = join(agent, "project");
     mkdirSync(cwd);

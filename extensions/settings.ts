@@ -23,13 +23,15 @@ export async function editSettings(ctx: ExtensionCommandContext, config: Config,
       `Questionnaire idle timeout: ${draft.askUserTimeoutMs ? `${draft.askUserTimeoutMs / 1000} seconds` : "off"}`,
       `Image paste markers: ${draft.imagePasteEnabled ? "on" : "off"}`,
       `Background task autopatch: ${draft.backgroundTaskAutopatchEnabled ? "on" : "off"}${process.env.PI_ENHANCE_BACKGROUND_AUTOPATCH === "0" ? " (disabled by environment)" : ""}`,
+      `Subagent notification autopatch (experimental): ${draft.subagentNotificationAutopatchEnabled ? "on" : "off"}${process.env.PI_ENHANCE_SUBAGENT_AUTOPATCH === "0" ? " (disabled by environment)" : ""}`,
       "Save and apply", "Cancel",
     ];
     const selected = await ctx.ui.select("Pi enhancement settings", options);
     if (selected === undefined || selected === "Cancel") return;
     const index = options.indexOf(selected);
-    if (index === 0 || index === 5 || index === 6) {
-      const key = index === 0 ? "compactWhenAwayEnabled" : index === 5 ? "imagePasteEnabled" : "backgroundTaskAutopatchEnabled";
+    if (index === 0 || index === 5 || index === 6 || index === 7) {
+      const key = index === 0 ? "compactWhenAwayEnabled" : index === 5 ? "imagePasteEnabled"
+        : index === 6 ? "backgroundTaskAutopatchEnabled" : "subagentNotificationAutopatchEnabled";
       const value = await ctx.ui.select(options[index].split(":")[0], ["on", "off"]);
       if (value === "on" || value === "off") draft[key] = value === "on";
     } else if (index === 1) {
@@ -53,7 +55,7 @@ export async function editSettings(ctx: ExtensionCommandContext, config: Config,
         else draft.compactWhenAwayThresholdTokens = number;
       } else if (index === 3) draft.compactWhenAwayIdleMinutes = number;
       else draft.askUserTimeoutMs = Math.round(number * 1000);
-    } else if (index === 7) {
+    } else if (selected === "Save and apply") {
       try {
         saveConfig(path, draft);
       } catch (error) {
@@ -78,6 +80,7 @@ export function registerSettings(pi: ExtensionAPI, config: Config, path: string)
         `Questionnaire idle timeout: ${config.askUserTimeoutMs ? `${config.askUserTimeoutMs / 1000} seconds` : "off"}`,
         `Image paste markers: ${config.imagePasteEnabled ? "on" : "off"}`,
         `Background task autopatch: ${config.backgroundTaskAutopatchEnabled ? "on" : "off"}${process.env.PI_ENHANCE_BACKGROUND_AUTOPATCH === "0" ? " (disabled by environment)" : ""}`,
+        `Subagent notification autopatch (experimental): ${config.subagentNotificationAutopatchEnabled ? "on" : "off"}${process.env.PI_ENHANCE_SUBAGENT_AUTOPATCH === "0" ? " (disabled by environment)" : ""}`,
         `Config: ${path}`,
       ].join("\n"), "info");
     } else if (command === "" || command === "settings") {

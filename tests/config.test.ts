@@ -8,6 +8,7 @@ import { loadConfig, normalizeConfig, saveConfig } from "../extensions/config.ts
 import { registerSettings } from "../extensions/settings.ts";
 import { registerImagePastePatches } from "../extensions/pi-image-paste/index.ts";
 import { registerBackgroundTaskPatches } from "../extensions/pi-background-tasks/index.ts";
+import { registerSubagentPatches } from "../extensions/gotgenes-pi-subagents/index.ts";
 
 function fixture(t: test.TestContext) {
   const dir = mkdtempSync(join(tmpdir(), "pi-enhance-config-"));
@@ -20,6 +21,9 @@ test("one configuration defines all enhancement defaults", () => {
   assert.equal(config.askUserTimeoutMs, 60_000);
   assert.equal(config.imagePasteEnabled, true);
   assert.equal(config.backgroundTaskAutopatchEnabled, true);
+  assert.equal(config.subagentNotificationAutopatchEnabled, false);
+  assert.equal(normalizeConfig({ subagentNotificationAutopatchEnabled: true }).subagentNotificationAutopatchEnabled, true);
+  assert.equal(normalizeConfig({ subagentNotificationAutopatchEnabled: "true" }).subagentNotificationAutopatchEnabled, false);
   assert.equal(config.compactWhenAwayEnabled, true);
   assert.equal(config.compactWhenAwayThresholdKind, "count");
   assert.equal(config.compactWhenAwayThresholdTokens, 128_000);
@@ -67,6 +71,7 @@ test("malformed central config does not activate legacy opt-in features", t => {
   writeFileSync(path, "invalid JSON");
   const result = loadConfig(path);
   assert.equal(result.config.compactWhenAwayEnabled, false);
+  assert.equal(result.config.subagentNotificationAutopatchEnabled, false);
   assert.ok(result.warning);
   assert.throws(() => saveConfig(path, result.config));
   assert.equal(readFileSync(path, "utf8"), "invalid JSON");
@@ -97,4 +102,6 @@ test("disabled image paste and background autopatch do not install hooks", () =>
   const pi = { on() { assert.fail("disabled module installed an event handler"); } } as unknown as ExtensionAPI;
   registerImagePastePatches(pi, false);
   registerBackgroundTaskPatches(pi, false);
+  registerSubagentPatches(pi, false);
+  registerSubagentPatches(pi);
 });

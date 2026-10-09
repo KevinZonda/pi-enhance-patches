@@ -1,0 +1,140 @@
+diff --git a/src/index.ts b/src/index.ts
+index 1fa88b3..ac73ba5 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -15,6 +15,7 @@ import {
+   createAgentSession,
+   DefaultResourceLoader,
+   type ExtensionAPI,
++  type ExtensionContext,
+   getAgentDir,
+   loadProjectContextFiles,
+   ModelRuntime,
+@@ -82,6 +83,7 @@ export default function (pi: ExtensionAPI) {
+   // widget dependency — keeping the construction graph a cycle-free DAG.
+   const notifications = new NotificationManager(
+     (msg, opts) => pi.sendMessage(msg, opts),
++    () => (runtime.currentCtx as ExtensionContext | undefined)?.isIdle() ?? false,
+   );
+ 
+   // Gate nudge delivery on the parent's agent run. agent_settled fires exactly
+diff --git a/src/observation/notification.ts b/src/observation/notification.ts
+index 0f13626..ad6222a 100644
+--- a/src/observation/notification.ts
++++ b/src/observation/notification.ts
+@@ -215,8 +215,8 @@ export interface WorkspaceNoticeDetails {
+  * updates are two distinct facts and both survive.
+  */
+ type PendingAnnouncement =
+-  | { kind: "completion"; record: Subagent }
+-  | { kind: "update"; record: Subagent; message: string };
++  | { kind: "completion"; record: Subagent; run: AbortController }
++  | { kind: "update"; record: Subagent; run: AbortController; message: string };
+ 
+ export class NotificationManager implements NotificationSystem {
+   // pi.sendMessage is fire-and-forget: while the parent's agent run is active,
+@@ -232,12 +232,14 @@ export class NotificationManager implements NotificationSystem {
+   private pending: PendingAnnouncement[] = [];
+   private parentRunActive = false;
+   private disposed = false;
++  private flushTimer: ReturnType<typeof setTimeout> | undefined;
+ 
+   constructor(
+     private sendMessage: (
+       msg: { customType: string; content: string; display: boolean; details?: unknown },
+       opts?: { triggerTurn?: boolean; deliverAs?: "steer" | "followUp" | "nextTurn" },
+     ) => void,
++    private isParentIdle: () => boolean = () => true,
+   ) {}
+ 
+   sendCompletion(record: Subagent): void {
+@@ -255,11 +257,8 @@ export class NotificationManager implements NotificationSystem {
+     // guard); emitIndividualNudge re-reads record.consumed when the nudge is
+     // actually emitted, which is what makes the flush a fresh re-check.
+     if (record.consumed) return;
+-    if (this.parentRunActive) {
+-      this.withholdCompletion(record);
+-      return;
+-    }
+-    this.emitIndividualNudge(record);
++    this.withholdCompletion(record);
++    this.scheduleFlush();
+   }
+ 
+   /**
+@@ -268,9 +267,9 @@ export class NotificationManager implements NotificationSystem {
+    * fact told again, not a later one.
+    */
+   private withholdCompletion(record: Subagent): void {
+-    const entry: PendingAnnouncement = { kind: "completion", record };
++    const entry: PendingAnnouncement = { kind: "completion", record, run: record.abortController };
+     const existing = this.pending.findIndex(
+-      (queued) => queued.kind === "completion" && queued.record.id === record.id,
++      (queued) => queued.kind === "completion" && queued.record.id === record.id && queued.run === entry.run,
+     );
+     if (existing === -1) this.pending.push(entry);
+     else this.pending[existing] = entry;
+@@ -288,11 +287,8 @@ export class NotificationManager implements NotificationSystem {
+   sendUpdate(record: Subagent, message: string): void {
+     if (this.disposed) return;
+     if (!this.canAnnounceUpdate(record)) return;
+-    if (this.parentRunActive) {
+-      this.pending.push({ kind: "update", record, message });
+-      return;
+-    }
+-    this.emitUpdate(record, message);
++    this.pending.push({ kind: "update", record, run: record.abortController, message });
++    this.scheduleFlush();
+   }
+ 
+   /**
+@@ -353,20 +349,41 @@ export class NotificationManager implements NotificationSystem {
+    */
+   onParentAgentSettled(): void {
+     this.parentRunActive = false;
+-    const withheld = this.pending.splice(0);
+-    for (const entry of withheld) {
+-      try {
+-        if (entry.kind === "update") this.emitUpdate(entry.record, entry.message);
+-        else this.emitIndividualNudge(entry.record);
+-      } catch (err) {
+-        debugLog("notification render", err);
++    this.scheduleFlush();
++  }
++
++  private scheduleFlush(): void {
++    if (this.disposed || this.parentRunActive || this.flushTimer || this.pending.length === 0) return;
++    // Stay outside Pi's settled dispatch: its deferred prompts cannot be recalled.
++    this.flushTimer = setTimeout(() => {
++      this.flushTimer = undefined;
++      if (this.disposed || this.parentRunActive) return;
++      if (!this.isParentIdle()) {
++        this.scheduleFlush();
++        return;
++      }
++      while (this.pending.length > 0) {
++        const entry = this.pending.shift()!;
++        if (entry.run !== entry.record.abortController) continue;
++        if (entry.kind === "update" ? !this.canAnnounceUpdate(entry.record) : entry.record.claimed || entry.record.consumed) continue;
++        try {
++          if (entry.kind === "update") this.emitUpdate(entry.record, entry.message);
++          else this.emitIndividualNudge(entry.record);
++          // One prompt at a time; the remaining records are rechecked after it.
++          break;
++        } catch (err) {
++          debugLog("notification render", err);
++        }
+       }
+-    }
++      this.scheduleFlush();
++    }, 25);
+   }
+ 
+   /** Terminal: the manager stops announcing anything, now and afterwards. */
+   dispose(): void {
+     this.disposed = true;
++    if (this.flushTimer) clearTimeout(this.flushTimer);
++    this.flushTimer = undefined;
+     this.pending.length = 0;
+   }
+ 

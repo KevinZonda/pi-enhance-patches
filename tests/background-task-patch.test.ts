@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { createEventBus, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { loadExtensions } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js";
+
+import { copyOriginalBackgroundPackage } from "./background-task-fixture.ts";
 
 const upstream = process.env.PI_BACKGROUND_TASKS_TEST_DIR ?? join(getAgentDir(), "npm/node_modules/pi-background-tasks");
 const manifest = join(upstream, "package.json");
@@ -19,7 +21,7 @@ test("manual cache patch applies/reverses on 2.6.9 and preserves real background
   // Terminal publication precedes the final metadata write; clean only after pending I/O drains.
   process.once("exit", () => rmSync(dir, { recursive: true, force: true }));
   const target = join(dir, "plugin");
-  cpSync(upstream, target, { recursive: true });
+  copyOriginalBackgroundPackage(upstream, target);
   const patch = resolve("patches/pi-background-tasks-2.6.9-global-cache.patch");
   const files = ["src/core/registry.ts", "dist/src/core/registry.js", "src/extension.ts", "dist/src/extension.js"];
   const originals = files.map(file => readFileSync(join(target, file), "utf8"));

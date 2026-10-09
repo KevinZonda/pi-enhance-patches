@@ -4,7 +4,10 @@ Pi 及第三方扩展的独立增强包。
 图片、权限与问卷使用运行时包装，不修改目标源码；后台任务目录使用启动 autopatcher，
 会在满足条件时修改已安装插件的文件，补丁也可手动应用，见 [`patches/README.md`](patches/README.md)。
 包含图片粘贴占位标记、临时权限模式、问卷闲置超时、后台任务全局缓存目录与 Compact When Away。
-五个模块独立启用，第三方插件均可选。
+另提供实验性的 `@gotgenes/pi-subagents 23.4.0` 旧通知补丁：隔离跨 resume 通知，
+避免 settled 时整批通知进入 Pi 后无法撤回；保留正常自动唤醒。
+支持默认关闭的启动 autopatcher，也可手动 Apply/Revert，限制见 [`patches/README.md`](patches/README.md)。
+各模块独立启用，第三方插件均可选。
 已验证 Pi 1.1.0、permission-system 40.0.2、rpiv-ask-user-question 2.12.0、pi-background-tasks 2.6.9。
 
 ## 安装
@@ -60,7 +63,7 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 /enhance-patches show      查看当前设置
 ```
 
-菜单集中管理 Compact When Away、问卷闲置超时、图片粘贴占位标记和后台任务 autopatcher。
+菜单集中管理 Compact When Away、问卷闲置超时、图片粘贴占位标记和两个 autopatcher。
 压缩阈值选择 `count` 或 `ratio` 后，只显示当前模式的阈值；切换模式时保留两边的数值。
 选择 **Save and apply** 将所有设置保存到同一个文件，并自动 `/reload`；取消或 Esc 不写入配置。
 手动修改文件后执行 `/reload`。
@@ -72,6 +75,7 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
   "askUserTimeoutMs": 60000,
   "imagePasteEnabled": true,
   "backgroundTaskAutopatchEnabled": true,
+  "subagentNotificationAutopatchEnabled": false,
   "compactWhenAwayEnabled": true,
   "compactWhenAwayThresholdKind": "count",
   "compactWhenAwayThresholdTokens": 128000,
@@ -101,6 +105,7 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 顶层 `extensions/index.ts` 只负责注册各模块；权限模块位于
 `extensions/pi-permission-system/`，问卷模块位于 `extensions/rpiv-ask-user-question/`，
 图片模块位于 `extensions/pi-image-paste/`，目录 autopatcher 位于 `extensions/pi-background-tasks/`。
+通知 autopatcher 位于 `extensions/gotgenes-pi-subagents/`，与目录 autopatcher 复用安装补丁预检。
 空闲压缩模块位于 `extensions/compact-when-away/`，使用 Pi 原生压缩接口，无需第三方插件。
 
 通过会话 service 接入共享的配置与审批实例，依赖 permission-system 的内部结构。
@@ -179,21 +184,36 @@ pi remove /Users/kevin/Desktop/cc_plugins/pi-enhance-patches-asks
 
 避免同时加载独立 asks 包与本包。权限模块无需问卷插件；仅启用问卷超时时也无需权限插件。
 
-## 后台任务目录 autopatcher
+## 后台任务 autopatcher
 
 启动时检测已加载的 `bg_run` 和 Pi agent 目录中默认 npm 安装的 `pi-background-tasks`。
 仅针对 2.6.9：反向预检确认尚未应用、正向预检通过且文件/目录可写时，
-自动应用 `patches/pi-background-tasks-2.6.9-global-cache.patch`。
+分别自动应用 `patches/pi-background-tasks-2.6.9-global-cache.patch` 与
+`patches/pi-background-tasks-2.6.9-panel-close.patch`。
 已应用时不重复写入；其他版本、缺少 Git、权限问题或源码不匹配时提示并跳过。
 并发启动使用互斥锁，不删除其他进程的锁；异常退出残留锁需确认进程已结束后手动移除。
 
-补丁将新任务日志写到 Pi agent 目录的 `cache/background-tasks/`，按项目真实路径及会话/进程隔离。
+目录补丁将新任务日志写到 Pi agent 目录的 `cache/background-tasks/`，按项目真实路径及会话/进程隔离。
+面板补丁解析终端编码后的 `q` / `x`（含大写），保留 `Esc` 关闭；关闭面板不会停止后台任务。
+`Shift + ↓` 仍只负责打开面板，不是开关切换。
 首次应用后提示 `/reload` 或重启：本次已加载的插件仍可能使用旧目录，不自动重载或中断任务。
 不迁移或删除旧日志，不修改 Fusion 的独立产物目录；升级或重装 2.6.9 后会重新检查并应用。
 非默认 npm 安装位置请手动应用。在统一设置中关闭 Background task autopatch 可禁用自动修改。
 `PI_ENHANCE_BACKGROUND_AUTOPATCH=0` 仍优先禁用自动修改，菜单和状态会显示该环境变量覆盖。
 补丁撤销前先禁用 autopatcher，否则下一次启动会再次应用。
 详细预检、Apply 和 Revert 命令见 [`patches/README.md`](patches/README.md)。
+
+## Subagent 旧通知 autopatcher（实验性）
+
+默认关闭。在 `/enhance-patches` 中将 **Subagent notification autopatch (experimental)** 设为 on，
+或在统一配置中设置 `"subagentNotificationAutopatchEnabled": true` 后 `/reload`。
+仅在目标插件已加载且默认 npm 安装包为 `@gotgenes/pi-subagents 23.4.0` 时尝试应用；
+非目标版本、锁占用、源码不匹配、无 Git 或不可写均提示跳过。不是同名的 `pi-subagents` 包。
+
+首次应用只修改磁盘文件，需在当前任务结束后再次 `/reload` 或重启才能加载补丁；
+不会自动中断任务或重载。已入 Pi 队列的旧消息不会被撤回。
+`PI_ENHANCE_SUBAGENT_AUTOPATCH=0` 优先禁用自动修改；菜单关闭或环境禁用均不会撤销已应用的补丁。
+撤销前先关闭 autopatcher，具体命令和通知行为限制见 [`patches/README.md`](patches/README.md)。
 
 ## Compact When Away
 

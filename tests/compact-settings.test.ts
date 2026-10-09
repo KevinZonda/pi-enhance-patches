@@ -12,7 +12,7 @@ test("settings editor saves kind, ratio, count and idle time; applies via reload
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const path = join(directory, "settings.json");
   writeFileSync(path, JSON.stringify({ futureSetting: { keep: true } }));
-  const choices = [0, "on", 2, 1, "ratio", 2, 3, 4, 5, "off", 6, "off", 7];
+  const choices = [0, "on", 2, 1, "ratio", 2, 3, 4, 5, "off", 6, "off", 7, "on", "Save and apply"];
   const inputs = ["160000", "80", "15", "60"];
   let reloaded = 0;
   const original = normalizeConfig({});
@@ -40,6 +40,7 @@ test("settings editor saves kind, ratio, count and idle time; applies via reload
   assert.equal(saved.askUserTimeoutMs, 60_000);
   assert.equal(saved.imagePasteEnabled, false);
   assert.equal(saved.backgroundTaskAutopatchEnabled, false);
+  assert.equal(saved.subagentNotificationAutopatchEnabled, true);
   assert.equal(compactThresholdLabel(saved), "80% of context window");
   assert.equal(compactThresholdLabel(normalizeConfig({})), "128000 tokens");
 });
@@ -48,7 +49,7 @@ test("invalid settings are rejected; cancel does not save or reload", async t =>
   const directory = mkdtempSync(join(tmpdir(), "pi-compact-settings-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const path = join(directory, "settings.json");
-  const choices: Array<number | string> = [2, 1, "ratio", 2, 3, 4, 8];
+  const choices: Array<number | string> = [2, 1, "ratio", 2, 3, 4, "Cancel"];
   const inputs = ["-5", "101", "1.5", "-1"];
   const notices: string[] = [];
   const ctx = {

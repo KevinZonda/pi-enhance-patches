@@ -6,6 +6,7 @@ export type Config = {
   askUserTimeoutMs: number;
   imagePasteEnabled: boolean;
   backgroundTaskAutopatchEnabled: boolean;
+  subagentNotificationAutopatchEnabled: boolean;
   compactWhenAwayEnabled: boolean;
   compactWhenAwayThresholdKind: "count" | "ratio";
   compactWhenAwayThresholdTokens: number;
@@ -20,6 +21,7 @@ export function normalizeConfig(raw: unknown): Config {
       ? Math.max(1000, Math.min(86_400_000, Math.round(value.askUserTimeoutMs))) : 0,
     imagePasteEnabled: value.imagePasteEnabled !== false,
     backgroundTaskAutopatchEnabled: value.backgroundTaskAutopatchEnabled !== false,
+    subagentNotificationAutopatchEnabled: value.subagentNotificationAutopatchEnabled === true,
     compactWhenAwayEnabled: value.compactWhenAwayEnabled === undefined || value.compactWhenAwayEnabled === true,
     compactWhenAwayThresholdKind: value.compactWhenAwayThresholdKind === "ratio" ? "ratio" : "count",
     compactWhenAwayThresholdTokens: positiveInteger(value.compactWhenAwayThresholdTokens, 128_000),

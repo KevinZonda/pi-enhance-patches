@@ -1,0 +1,49 @@
+--- a/src/ui/background-tasks-manager.ts
++++ b/src/ui/background-tasks-manager.ts
+@@ -3,6 +3,7 @@
+ import { formatSize } from '@earendil-works/pi-coding-agent';
+ import {
+   matchesKey,
++  parseKey,
+   truncateToWidth,
+   visibleWidth,
+   type Component,
+@@ -262,12 +263,10 @@
+     if (!stopAllKey) this.confirmStopAllArmed = false;
+     this.actionMessage = undefined;
+ 
++    const key = parseKey(data);
+     if (
+       matchesKey(data, 'escape') ||
+-      data === 'q' ||
+-      data === 'Q' ||
+-      data === 'x' ||
+-      data === 'X'
++      (key !== undefined && ['q', 'Q', 'x', 'X', 'shift+q', 'shift+x'].includes(key))
+     ) {
+       this.close();
+       return;
+--- a/dist/src/ui/background-tasks-manager.js
++++ b/dist/src/ui/background-tasks-manager.js
+@@ -1,6 +1,6 @@
+ import { existsSync } from 'node:fs';
+ import { formatSize } from '@earendil-works/pi-coding-agent';
+-import { matchesKey, truncateToWidth, visibleWidth, } from '@earendil-works/pi-tui';
++import { matchesKey, parseKey, truncateToWidth, visibleWidth, } from '@earendil-works/pi-tui';
+ import { boundedRead, compactWhitespace, formatCompactNumber, formatDuration, taskDisplayName, truncateChars, } from '../core/common.js';
+ const STATUS_INTERVAL_MS = 1000;
+ // Detail-view scrollback reservoir. Larger than the model-facing log cap because
+@@ -212,11 +212,9 @@
+         if (!stopAllKey)
+             this.confirmStopAllArmed = false;
+         this.actionMessage = undefined;
++        const key = parseKey(data);
+         if (matchesKey(data, 'escape') ||
+-            data === 'q' ||
+-            data === 'Q' ||
+-            data === 'x' ||
+-            data === 'X') {
++            (key !== undefined && ['q', 'Q', 'x', 'X', 'shift+q', 'shift+x'].includes(key))) {
+             this.close();
+             return;
+         }
