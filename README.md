@@ -49,7 +49,45 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 模式与选择均不写入配置文件，明确 deny 始终保留。
 退出或 `/reload` 后命令选择不保留；新实例按 CLI 参数或配置重新初始化。
 
-## 设置与子代理
+## 统一设置
+
+本包的持久设置集中在 `~/.pi/agent/pi-enhance-patches.json`，
+设置 `PI_CODING_AGENT_DIR` 时使用该目录。
+
+```text
+/enhance-patches           打开统一设置菜单
+/enhance-patches settings  打开统一设置菜单
+/enhance-patches show      查看当前设置
+```
+
+菜单集中管理 Compact When Away、问卷闲置超时、图片粘贴占位标记和后台任务 autopatcher。
+压缩阈值选择 `count` 或 `ratio` 后，只显示当前模式的阈值；切换模式时保留两边的数值。
+选择 **Save and apply** 将所有设置保存到同一个文件，并自动 `/reload`；取消或 Esc 不写入配置。
+手动修改文件后执行 `/reload`。
+
+下面是默认配置：
+
+```json
+{
+  "askUserTimeoutMs": 0,
+  "imagePasteEnabled": true,
+  "backgroundTaskAutopatchEnabled": true,
+  "compactWhenAwayEnabled": false,
+  "compactWhenAwayThresholdKind": "count",
+  "compactWhenAwayThresholdTokens": 128000,
+  "compactWhenAwayThresholdRatio": 0.7,
+  "compactWhenAwayIdleMinutes": 10
+}
+```
+
+旧的 `pi-enhance-patches-asks.json` 和 `pi-enhance-patches-compact.json` 仍作为兼容来源读取，
+仅补充统一配置中未设置的对应字段；统一配置的值优先，包括 `false` 和 `0`。
+保存菜单后，当前设置全部写入统一文件，不再写入旧文件；旧文件保留。
+损坏的统一配置使用默认值并提示，不通过旧文件开启自动超时/压缩，保存时也不会覆盖损坏文件。
+
+`/permission` 继续用于会话内临时权限切换。原权限插件的持久规则仍由 `/permission-system` 管理。
+
+## 权限设置与子代理
 
 临时模式期间，`/permission-system` 显示有效 YOLO 值。
 保存其他设置会保留原来的持久 YOLO 值；要修改持久 YOLO，请不带临时参数重启 Pi 后设置。
@@ -99,8 +137,9 @@ RPC 和扩展发送的消息不做标记替换。
 ## 问卷闲置超时
 
 需要安装原问卷插件：`pi install npm:@juicesharp/rpiv-ask-user-question`。
-问卷插件与本包的加载顺序均可。默认关闭自动跳过；创建
-`~/.pi/agent/pi-enhance-patches-asks.json`：
+问卷插件与本包的加载顺序均可。默认关闭自动跳过；在 `/enhance-patches` 设置
+Questionnaire idle timeout，菜单以秒为单位，`0` 关闭。
+也可在统一配置 `pi-enhance-patches.json` 中设置：
 
 ```json
 {
@@ -110,8 +149,7 @@ RPC 和扩展发送的消息不做标记替换。
 
 表示闲置 60 秒后跳过。`0` 关闭；正数取整并限制为 1000–86400000ms。
 未配置或无效值关闭超时；损坏文件关闭超时并在启动时提示。
-设置 `PI_CODING_AGENT_DIR` 时从该目录读取配置。
-修改后执行 `/reload`，`/askpatches` 查看配置。
+修改后执行 `/reload`，`/enhance-patches show` 查看配置。
 
 - 计时从问卷组件准备好开始，输入、编辑和切换选项会重新计时。
 - 外部编辑器打开、问卷折叠隐藏或被其他浮窗覆盖时暂停计时。
@@ -129,7 +167,8 @@ RPC 和扩展发送的消息不做标记替换。
 
 ### 从独立 asks 包迁移
 
-问卷功能已从 `pi-enhance-patches-asks` 合并到本包，原配置文件和 `/askpatches` 保持兼容。
+问卷功能已从 `pi-enhance-patches-asks` 合并到本包，原配置文件保持兼容读取；
+查看和修改设置请用 `/enhance-patches`。
 如果安装过独立包，请先通过 `pi remove` 移除其原安装来源，再安装或更新本包并 `/reload`。
 例如独立包使用本地路径安装时：
 
@@ -150,7 +189,8 @@ pi remove /Users/kevin/Desktop/cc_plugins/pi-enhance-patches-asks
 补丁将新任务日志写到 Pi agent 目录的 `cache/background-tasks/`，按项目真实路径及会话/进程隔离。
 首次应用后提示 `/reload` 或重启：本次已加载的插件仍可能使用旧目录，不自动重载或中断任务。
 不迁移或删除旧日志，不修改 Fusion 的独立产物目录；升级或重装 2.6.9 后会重新检查并应用。
-非默认 npm 安装位置请手动应用。设置 `PI_ENHANCE_BACKGROUND_AUTOPATCH=0` 可禁用自动修改。
+非默认 npm 安装位置请手动应用。在统一设置中关闭 Background task autopatch 可禁用自动修改。
+`PI_ENHANCE_BACKGROUND_AUTOPATCH=0` 仍优先禁用自动修改，菜单和状态会显示该环境变量覆盖。
 补丁撤销前先禁用 autopatcher，否则下一次启动会再次应用。
 详细预检、Apply 和 Revert 命令见 [`patches/README.md`](patches/README.md)。
 
@@ -159,21 +199,18 @@ pi remove /Users/kevin/Desktop/cc_plugins/pi-enhance-patches-asks
 上下文达到阈值，整轮任务结束后空闲足够时间时自动压缩。默认关闭。
 
 ```text
-/compact-away           打开设置菜单
-/compact-away settings  打开设置菜单
-/compact-away show      查看当前设置
+/enhance-patches       打开统一设置菜单
+/enhance-patches show  查看当前设置
 ```
 
-菜单可以设置开关、Context threshold kind (`count` / `ratio`)、token 数、百分比和空闲分钟数。
+菜单可以设置开关、Context threshold kind (`count` / `ratio`)、当前模式的阈值和空闲分钟数。
 `count` 默认 **≥128,000 tokens**；`ratio` 默认 **≥70%**，按当前模型的上下文窗口计算。
 两种阈值分别保存，切换类型时保留各自数值，只有选中的类型参与触发判断。
 默认空闲时间为 **10 分钟**。菜单的比例以百分比输入，例如 `80` 表示 80%；
 JSON 中用 `0.8`。时间接受整数分钟 1–1440，token 数接受正整数，ratio 范围为 >0–1。
 无效配置值回退默认值，未设置 kind 时使用 `count`。
 
-选择 **Save and apply** 保存并自动 `/reload`；取消或 Esc 不写入配置。
-配置文件为 `~/.pi/agent/pi-enhance-patches-compact.json`，设置 `PI_CODING_AGENT_DIR` 时使用该目录。
-也可手动编辑，之后执行 `/reload`：
+所有字段写入统一配置 `pi-enhance-patches.json`。也可手动编辑，之后执行 `/reload`：
 
 ```json
 {

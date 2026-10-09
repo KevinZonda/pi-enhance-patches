@@ -54,7 +54,8 @@ export async function applyBackgroundCachePatch(target: string, patch = BACKGROU
   }
 }
 
-export function registerBackgroundTaskPatches(pi: ExtensionAPI): void {
+export function registerBackgroundTaskPatches(pi: ExtensionAPI, enabled = true): void {
+  if (!enabled) return;
   pi.on("session_start", async (_event, ctx) => {
     if (process.env.PI_ENHANCE_BACKGROUND_AUTOPATCH === "0" || !pi.getAllTools().some(tool => tool.name === "bg_run")) return;
     const target = join(getAgentDir(), "npm", "node_modules", "pi-background-tasks");

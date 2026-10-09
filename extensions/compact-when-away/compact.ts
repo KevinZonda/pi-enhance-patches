@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Config } from "./config.ts";
+import type { Config } from "../config.ts";
 
 /** Only arm after a completed run in this session; never compact a newly loaded history. */
 export function registerCompactWhenAway(pi: ExtensionAPI, config: Config): void {

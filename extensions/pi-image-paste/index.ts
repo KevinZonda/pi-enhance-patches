@@ -36,7 +36,8 @@ function isAttachment(value: unknown): value is Attachment {
     typeof image.mimeType === "string" && image.mimeType.startsWith("image/");
 }
 
-export function registerImagePastePatches(pi: ExtensionAPI): void {
+export function registerImagePastePatches(pi: ExtensionAPI, enabled = true): void {
+  if (!enabled) return;
   let attachments = new ImageAttachments();
   let dispose: (() => void) | undefined;
   pi.on("session_start", async (_event, ctx) => {

@@ -15,7 +15,7 @@ test("merged package times out questions while leaving a real permission approva
   const dir = mkdtempSync(join(tmpdir(), "pi-combined-patches-"));
   const previous = process.env.PI_CODING_AGENT_DIR;
   process.env.PI_CODING_AGENT_DIR = dir;
-  writeFileSync(join(dir, "pi-enhance-patches-asks.json"), JSON.stringify({ askUserTimeoutMs: 1000 }));
+  writeFileSync(join(dir, "pi-enhance-patches.json"), JSON.stringify({ askUserTimeoutMs: 1000 }));
   const permissions = join(dir, "extensions/pi-permission-system/config.json");
   mkdirSync(dirname(permissions), { recursive: true });
   writeFileSync(permissions, JSON.stringify({ doublePressToConfirm: false, permission: { "*": "allow", bash: { "*": "ask" } } }));

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import type { CompactOptions, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { registerCompactWhenAway } from "../extensions/compact-when-away/compact.ts";
-import { normalizeConfig } from "../extensions/compact-when-away/config.ts";
+import { normalizeConfig } from "../extensions/config.ts";
 
 const TEN_MINUTES = 600_000;
 

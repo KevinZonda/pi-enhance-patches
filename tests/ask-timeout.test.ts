@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ExtensionRunner, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { installAskTimeout, TIMEOUT_MESSAGE, wrapAskExecute } from "../extensions/rpiv-ask-user-question/ask-timeout.ts";
-import { normalizeConfig } from "../extensions/rpiv-ask-user-question/config.ts";
+import { normalizeConfig } from "../extensions/config.ts";
 import { flush, host, simpleExecute } from "./ask-helpers.ts";
 
 test("timeout config defaults off and validates positive finite millisecond bounds", () => {
