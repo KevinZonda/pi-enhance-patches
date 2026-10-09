@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { getPackageDir, InteractiveMode, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { IMAGE_ENTRY, ImageAttachments, installImagePaste, type Attachment, type Clipboard, type PastePrototype } from "./image-paste.ts";
+import { IMAGE_ENTRY, IMAGE_MARKER, ImageAttachments, installImagePaste, type Attachment, type Clipboard, type PastePrototype } from "./image-paste.ts";
 
 async function loadClipboard(): Promise<Clipboard> {
   // Pi exposes neither clipboard reads nor its paste hook as public extension APIs.
@@ -57,7 +57,7 @@ export function registerImagePastePatches(pi: ExtensionAPI): void {
     }
   });
   pi.on("input", (event, ctx) => {
-    if (ctx.mode !== "tui" || event.source !== "interactive" || !/\[Image #\d+\]/.test(event.text)) return;
+    if (ctx.mode !== "tui" || event.source !== "interactive" || !event.text.match(IMAGE_MARKER)) return;
     try {
       const images = attachments.resolve(event.text);
       if (ctx.model && !ctx.model.input.includes("image")) throw new Error("Current model does not support images. Select an image-capable model first.");

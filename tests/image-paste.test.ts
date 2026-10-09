@@ -39,11 +39,12 @@ test("concurrent screenshot pastes get ordered markers, spaces, and actual image
   const h = fixture(t);
   h.text = "看看";
   await Promise.all([h.mode.handleClipboardPaste(), h.mode.handleClipboardPaste()]);
-  assert.equal(h.text, "看看 [Image #1] [Image #2]");
+  assert.equal(h.text, "看看 [Image #1 (1x1)] [Image #2 (1x1)]");
   assert.equal(h.saved.length, 2);
   assert.deepEqual(h.attachments.resolve(h.text), [1, 2].map(() => ({ type: "image", data: png.toString("base64"), mimeType: "image/png" })));
   assert.deepEqual(h.attachments.resolve("deleted all markers"), []);
-  assert.equal(h.attachments.resolve("[Image #2] [Image #2]").length, 1);
+  assert.equal(h.attachments.resolve("[Image #2] [Image #2 (1x1)]").length, 1);
+  assert.deepEqual(h.attachments.resolve("[Image #1 (708x172)]"), h.attachments.resolve("[Image #1]"));
   assert.equal(h.attachments.resolve("[Image #1]").length, 1); // History resend remains usable.
 });
 
@@ -51,9 +52,25 @@ test("copied images and ordinary files can be pasted together", async t => {
   const h = fixture(t);
   h.clipboard.readClipboardFilePaths = async () => [h.path, "/tmp/notes.txt"];
   await h.mode.handleClipboardPaste();
-  assert.equal(h.text, "[Image #1]\n/tmp/notes.txt");
+  assert.equal(h.text, "[Image #1 (1x1)]\n/tmp/notes.txt");
   assert.equal(h.saved[0].path, h.path);
   assert.equal(h.nativeCalls, 0);
+});
+
+test("dimension header produces the requested 708x172 marker and unknown dimensions fall back", async t => {
+  const h = fixture(t);
+  // Synthetic PNG header: dimension display reads metadata, not decoded pixels.
+  const header = Buffer.from(png);
+  header.writeUInt32BE(708, 16);
+  header.writeUInt32BE(172, 20);
+  writeFileSync(h.path, header);
+  await h.mode.handleClipboardPaste();
+  assert.equal(h.text, "[Image #1 (708x172)]");
+  h.text = "";
+  h.clipboard.readClipboardImage = async () => ({ bytes: header, mimeType: "image/bmp" });
+  await h.mode.handleClipboardPaste();
+  assert.equal(h.text, "[Image #2]");
+  assert.equal(h.errors.length, 0);
 });
 
 test("text, non-images, shell mode and other sessions use native paste", async t => {
@@ -105,7 +122,7 @@ test("old shutdown cannot remove a replacement patch", async t => {
   t.after(replacement);
   h.dispose();
   await h.mode.handleClipboardPaste();
-  assert.equal(h.text, "[Image #1]");
+  assert.equal(h.text, "[Image #1 (1x1)]");
 });
 
 test("real input event chain restores mappings, attaches images and blocks missing/unsupported images", async t => {
@@ -139,6 +156,9 @@ test("real input event chain restores mappings, attaches images and blocks missi
     assert.equal(sent.action, "transform");
     assert.deepEqual(sent.images, [existing, existing]);
     assert.equal(sent.text, "看 [Image #3]");
+    const withResolution = await runner.emitInput("看 [Image #3 (708x172)]", undefined, "interactive");
+    assert.equal(withResolution.action, "transform");
+    assert.deepEqual(withResolution.images, [existing]);
     assert.equal((await runner.emitInput("text", undefined, "interactive")).action, "continue");
     assert.equal((await runner.emitInput("[Image #3]", undefined, "rpc")).action, "continue");
     assert.equal((await runner.emitInput("[Image #99]", undefined, "interactive")).action, "handled");

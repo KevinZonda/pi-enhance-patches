@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import type { ImageContent } from "@earendil-works/pi-ai";
+import { getImageDimensions } from "@earendil-works/pi-tui";
 
 export const IMAGE_ENTRY = "pi-enhance-patches-image";
+export const IMAGE_MARKER = /\[Image #(\d+)(?: \(\d+x\d+\))?\]/g;
 export type Attachment = { id: number; path: string; mimeType: string };
 
 export class ImageAttachments {
@@ -16,7 +18,7 @@ export class ImageAttachments {
     return attachment;
   }
   resolve(text: string): ImageContent[] {
-    const ids = new Set([...text.matchAll(/\[Image #(\d+)\]/g)].map(match => Number(match[1])));
+    const ids = new Set([...text.matchAll(IMAGE_MARKER)].map(match => Number(match[1])));
     return [...ids].map(id => {
       const image = this.images.get(id);
       if (!image) throw new Error(`Unknown image attachment [Image #${id}]. Paste the image again.`);
@@ -72,9 +74,12 @@ export function installImagePaste(prototype: PastePrototype, clipboard: Clipboar
         if (!active || this.session.sessionId !== sessionId || this.editor !== editor) return;
         const text = parts.map(part => {
           if (!part.mimeType) return part.path;
+          const dimensions = getImageDimensions(readFileSync(part.path).toString("base64"), part.mimeType);
+          const resolution = dimensions && dimensions.widthPx > 0 && dimensions.heightPx > 0
+            ? ` (${dimensions.widthPx}x${dimensions.heightPx})` : "";
           const attachment = attachments.add(part.path, part.mimeType);
           persist(attachment);
-          return `[Image #${attachment.id}]`;
+          return `[Image #${attachment.id}${resolution}]`;
         }).join("\n");
         const cursor = editor.getCursor?.();
         const line = cursor ? (editor.getText().split("\n")[cursor.line] ?? "") : "";
