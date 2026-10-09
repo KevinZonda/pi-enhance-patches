@@ -3,8 +3,8 @@
 Pi 及第三方扩展的独立增强包。
 图片、权限与问卷使用运行时包装，不修改目标源码；后台任务目录使用启动 autopatcher，
 会在满足条件时修改已安装插件的文件，补丁也可手动应用，见 [`patches/README.md`](patches/README.md)。
-包含图片粘贴占位标记、临时权限模式、问卷闲置超时与后台任务全局缓存目录。
-四个模块独立启用，第三方插件均可选。
+包含图片粘贴占位标记、临时权限模式、问卷闲置超时、后台任务全局缓存目录与 Compact When Away。
+五个模块独立启用，第三方插件均可选。
 已验证 Pi 1.1.0、permission-system 40.0.2、rpiv-ask-user-question 2.12.0、pi-background-tasks 2.6.9。
 
 ## 安装
@@ -62,6 +62,7 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 顶层 `extensions/index.ts` 只负责注册各模块；权限模块位于
 `extensions/pi-permission-system/`，问卷模块位于 `extensions/rpiv-ask-user-question/`，
 图片模块位于 `extensions/pi-image-paste/`，目录 autopatcher 位于 `extensions/pi-background-tasks/`。
+空闲压缩模块位于 `extensions/compact-when-away/`，使用 Pi 原生压缩接口，无需第三方插件。
 
 通过会话 service 接入共享的配置与审批实例，依赖 permission-system 的内部结构。
 升级原插件后需要重新验证。
@@ -152,6 +153,49 @@ pi remove /Users/kevin/Desktop/cc_plugins/pi-enhance-patches-asks
 非默认 npm 安装位置请手动应用。设置 `PI_ENHANCE_BACKGROUND_AUTOPATCH=0` 可禁用自动修改。
 补丁撤销前先禁用 autopatcher，否则下一次启动会再次应用。
 详细预检、Apply 和 Revert 命令见 [`patches/README.md`](patches/README.md)。
+
+## Compact When Away
+
+上下文达到阈值，整轮任务结束后空闲足够时间时自动压缩。默认关闭。
+
+```text
+/compact-away           打开设置菜单
+/compact-away settings  打开设置菜单
+/compact-away show      查看当前设置
+```
+
+菜单可以设置开关、Context threshold kind (`count` / `ratio`)、token 数、百分比和空闲分钟数。
+`count` 默认 **≥128,000 tokens**；`ratio` 默认 **≥70%**，按当前模型的上下文窗口计算。
+两种阈值分别保存，切换类型时保留各自数值，只有选中的类型参与触发判断。
+默认空闲时间为 **10 分钟**。菜单的比例以百分比输入，例如 `80` 表示 80%；
+JSON 中用 `0.8`。时间接受整数分钟 1–1440，token 数接受正整数，ratio 范围为 >0–1。
+无效配置值回退默认值，未设置 kind 时使用 `count`。
+
+选择 **Save and apply** 保存并自动 `/reload`；取消或 Esc 不写入配置。
+配置文件为 `~/.pi/agent/pi-enhance-patches-compact.json`，设置 `PI_CODING_AGENT_DIR` 时使用该目录。
+也可手动编辑，之后执行 `/reload`：
+
+```json
+{
+  "compactWhenAwayEnabled": true,
+  "compactWhenAwayThresholdKind": "count",
+  "compactWhenAwayThresholdTokens": 128000,
+  "compactWhenAwayThresholdRatio": 0.7,
+  "compactWhenAwayIdleMinutes": 10
+}
+```
+
+计时从整轮任务完全结束开始，等待重试、后续队列和原生自动压缩处理完毕。
+终端输入会重新计时；输入框有草稿、正在执行工具、有待发送消息、弹出交互窗口，
+或 Pi 正在生成/压缩时不会触发。工具和交互窗口结束后重新等待完整的空闲时间。
+触发时重新读取上下文 token 估算与当前模型窗口；估算未知或低于阈值时跳过。
+
+直接调用原生 `ctx.compact()`，沿用默认摘要逻辑和压缩钩子，显示开始、完成或失败通知。
+每段对话最多尝试一次，失败或取消后也不自动重试；新一轮对话结束后重新计时。
+手动/原生压缩同样结束本次等待。加载历史、会话切换、分支导航和 `/reload` 不自动开始计时，
+退出时清理计时器和输入监听。执行 `!`/`!!` shell 命令后等待新一轮对话再启用计时。
+仅 TUI 生效，print、JSON 和 RPC 模式不触发。
+“Away”根据终端空闲推断，阅读回复时也可能触发；压缩会产生模型调用费用，摘要可能遗漏细节。
 
 ## 开发检查
 
