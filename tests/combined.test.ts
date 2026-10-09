@@ -4,13 +4,14 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import test from "node:test";
-import { ExtensionRunner, createEventBus } from "@earendil-works/pi-coding-agent";
+import { ExtensionRunner, InteractiveMode, createEventBus } from "@earendil-works/pi-coding-agent";
 import { loadExtensions } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js";
 import { host } from "./ask-helpers.ts";
 import { findPermissionService } from "../extensions/pi-permission-system/permission-mode.ts";
 
 test("merged package times out questions while leaving a real permission approval waiting", async t => {
   const originalRegistry = ExtensionRunner.prototype.getAllRegisteredTools;
+  const originalPaste = (InteractiveMode.prototype as any).handleClipboardPaste;
   const dir = mkdtempSync(join(tmpdir(), "pi-combined-patches-"));
   const previous = process.env.PI_CODING_AGENT_DIR;
   process.env.PI_CODING_AGENT_DIR = dir;
@@ -70,6 +71,7 @@ test("merged package times out questions while leaving a real permission approva
   let effectiveCurrent: (() => unknown) | undefined;
   try {
     await fire("session_start", { reason: "start" });
+    assert.notEqual((InteractiveMode.prototype as any).handleClipboardPaste, originalPaste);
     assert.equal(status.get("pi-permission-system"), "ask");
     store = (findPermissionService("combined") as any).session.configStore;
     effectiveCurrent = store!.current;
@@ -97,6 +99,7 @@ test("merged package times out questions while leaving a real permission approva
     approve?.("No");
     await fire("session_shutdown", { type: "session_shutdown" });
     assert.equal(ExtensionRunner.prototype.getAllRegisteredTools, originalRegistry);
+    assert.equal((InteractiveMode.prototype as any).handleClipboardPaste, originalPaste);
     if (store) assert.notEqual(store.current, effectiveCurrent);
   }
 });
