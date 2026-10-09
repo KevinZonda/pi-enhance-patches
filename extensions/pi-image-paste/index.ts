@@ -2,12 +2,13 @@ import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { InteractiveMode, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { pathToFileURL } from "node:url";
+import { getPackageDir, InteractiveMode, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { IMAGE_ENTRY, ImageAttachments, installImagePaste, type Attachment, type Clipboard, type PastePrototype } from "./image-paste.ts";
 
 async function loadClipboard(): Promise<Clipboard> {
   // Pi exposes neither clipboard reads nor its paste hook as public extension APIs.
-  const root = import.meta.resolve("@earendil-works/pi-coding-agent");
+  const root = pathToFileURL(join(getPackageDir(), "dist", "index.js"));
   const [files, images, mime] = await Promise.all([
     import(new URL("./utils/clipboard.js", root).href),
     import(new URL("./utils/clipboard-image.js", root).href),
