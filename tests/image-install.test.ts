@@ -28,7 +28,11 @@ test("Git-style install without node_modules loads clipboard helpers from the ru
   const ctx = {
     mode: "tui", hasUI: true, cwd: dir,
     sessionManager: { getSessionId: () => "git-install", getEntries: () => [] },
-    ui: { notify: (message: string) => notifications.push(message) },
+    ui: {
+      notify: (message: string) => notifications.push(message),
+      getEditorText: () => "",
+      onTerminalInput: () => () => {},
+    },
   };
   const fire = async (name: "session_start" | "session_shutdown") => {
     for (const extension of loaded.extensions) {

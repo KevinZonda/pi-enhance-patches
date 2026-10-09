@@ -50,9 +50,9 @@ function harness(t: TestContext, options: Record<string, unknown> = {}) {
   };
 }
 
-test("away compaction defaults are opt-in, 128,000 tokens and 10 minutes", () => {
+test("away compaction defaults are enabled, 128,000 tokens and 10 minutes", () => {
   const defaults = normalizeConfig({});
-  assert.equal(defaults.compactWhenAwayEnabled, false);
+  assert.equal(defaults.compactWhenAwayEnabled, true);
   assert.equal(defaults.compactWhenAwayThresholdKind, "count");
   assert.equal(defaults.compactWhenAwayThresholdRatio, 0.7);
   assert.equal(defaults.compactWhenAwayThresholdTokens, 128_000);

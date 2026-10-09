@@ -5,8 +5,9 @@ import { installAskTimeout, TIMEOUT_MESSAGE, wrapAskExecute } from "../extension
 import { normalizeConfig } from "../extensions/config.ts";
 import { flush, host, simpleExecute } from "./ask-helpers.ts";
 
-test("timeout config defaults off and validates positive finite millisecond bounds", () => {
-  for (const value of [undefined, 0, -1, Infinity, NaN, "60000"]) assert.equal(normalizeConfig({ askUserTimeoutMs: value }).askUserTimeoutMs, 0);
+test("timeout defaults to 60 seconds, supports explicit off and validates millisecond bounds", () => {
+  assert.equal(normalizeConfig({}).askUserTimeoutMs, 60_000);
+  for (const value of [0, -1, Infinity, NaN, "60000"]) assert.equal(normalizeConfig({ askUserTimeoutMs: value }).askUserTimeoutMs, 0);
   assert.equal(normalizeConfig({ askUserTimeoutMs: 1 }).askUserTimeoutMs, 1000);
   assert.equal(normalizeConfig({ askUserTimeoutMs: 60_000.4 }).askUserTimeoutMs, 60_000);
   assert.equal(normalizeConfig({ askUserTimeoutMs: 1e10 }).askUserTimeoutMs, 86_400_000);

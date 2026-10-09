@@ -16,11 +16,11 @@ export type Config = {
 export function normalizeConfig(raw: unknown): Config {
   const value = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
   return {
-    askUserTimeoutMs: typeof value.askUserTimeoutMs === "number" && Number.isFinite(value.askUserTimeoutMs) && value.askUserTimeoutMs > 0
+    askUserTimeoutMs: value.askUserTimeoutMs === undefined ? 60_000 : typeof value.askUserTimeoutMs === "number" && Number.isFinite(value.askUserTimeoutMs) && value.askUserTimeoutMs > 0
       ? Math.max(1000, Math.min(86_400_000, Math.round(value.askUserTimeoutMs))) : 0,
     imagePasteEnabled: value.imagePasteEnabled !== false,
     backgroundTaskAutopatchEnabled: value.backgroundTaskAutopatchEnabled !== false,
-    compactWhenAwayEnabled: value.compactWhenAwayEnabled === true,
+    compactWhenAwayEnabled: value.compactWhenAwayEnabled === undefined || value.compactWhenAwayEnabled === true,
     compactWhenAwayThresholdKind: value.compactWhenAwayThresholdKind === "ratio" ? "ratio" : "count",
     compactWhenAwayThresholdTokens: positiveInteger(value.compactWhenAwayThresholdTokens, 128_000),
     compactWhenAwayThresholdRatio: typeof value.compactWhenAwayThresholdRatio === "number" &&
@@ -49,7 +49,10 @@ function readObject(path: string): Record<string, unknown> {
 export function loadConfig(path: string): { config: Config; warning?: string } {
   let value: Record<string, unknown>;
   try { value = readObject(path); }
-  catch { return { config: normalizeConfig({}), warning: `Cannot read ${path}; using enhancement defaults.` }; }
+  catch {
+    return { config: normalizeConfig({ askUserTimeoutMs: 0, compactWhenAwayEnabled: false }),
+      warning: `Cannot read ${path}; automatic questionnaire timeout and idle compaction are disabled.` };
+  }
   const warnings: string[] = [];
   // New keys take precedence individually, including explicit false/zero values.
   const legacyFiles = [
@@ -64,7 +67,11 @@ export function loadConfig(path: string): { config: Config; warning?: string } {
     try {
       const old = readObject(legacyPath);
       for (const key of missing) if (Object.hasOwn(old, key)) value[key] = old[key];
-    } catch { warnings.push(`Cannot read legacy config ${legacyPath}; using defaults for missing settings.`); }
+    } catch {
+      if (missing.includes("askUserTimeoutMs")) value.askUserTimeoutMs = 0;
+      if (missing.includes("compactWhenAwayEnabled")) value.compactWhenAwayEnabled = false;
+      warnings.push(`Cannot read legacy config ${legacyPath}; its automatic feature is disabled unless set in the unified config.`);
+    }
   }
   return { config: normalizeConfig(value), ...(warnings.length ? { warning: warnings.join("\n") } : {}) };
 }

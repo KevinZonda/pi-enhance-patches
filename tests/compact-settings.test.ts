@@ -29,7 +29,7 @@ test("settings editor saves kind, ratio, count and idle time; applies via reload
   } as unknown as ExtensionCommandContext;
   await editSettings(ctx, original, path);
   assert.equal(reloaded, 1);
-  assert.equal(original.compactWhenAwayEnabled, false, "editing must not mutate active configuration");
+  assert.deepEqual(original, normalizeConfig({}), "editing must not mutate active configuration");
   const saved = JSON.parse(readFileSync(path, "utf8"));
   assert.deepEqual(saved.futureSetting, { keep: true });
   assert.equal(saved.compactWhenAwayEnabled, true);

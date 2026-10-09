@@ -17,10 +17,10 @@ function fixture(t: test.TestContext) {
 
 test("one configuration defines all enhancement defaults", () => {
   const config = normalizeConfig({});
-  assert.equal(config.askUserTimeoutMs, 0);
+  assert.equal(config.askUserTimeoutMs, 60_000);
   assert.equal(config.imagePasteEnabled, true);
   assert.equal(config.backgroundTaskAutopatchEnabled, true);
-  assert.equal(config.compactWhenAwayEnabled, false);
+  assert.equal(config.compactWhenAwayEnabled, true);
   assert.equal(config.compactWhenAwayThresholdKind, "count");
   assert.equal(config.compactWhenAwayThresholdTokens, 128_000);
   assert.equal(config.compactWhenAwayThresholdRatio, 0.7);
@@ -89,7 +89,7 @@ test("a single settings command shows the unified configuration", async () => {
   const ctx = { ui: { notify: (message: string) => notices.push(message) } } as unknown as ExtensionCommandContext;
   await commands.get("enhance-patches").handler("show", ctx);
   assert.match(notices[0], /pi-enhance-patches\.json/);
-  assert.match(notices[0], /Questionnaire idle timeout: off/);
+  assert.match(notices[0], /Questionnaire idle timeout: 60 seconds/);
   assert.match(notices[0], /Image paste markers: on/);
 });
 

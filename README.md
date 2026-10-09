@@ -69,10 +69,10 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 
 ```json
 {
-  "askUserTimeoutMs": 0,
+  "askUserTimeoutMs": 60000,
   "imagePasteEnabled": true,
   "backgroundTaskAutopatchEnabled": true,
-  "compactWhenAwayEnabled": false,
+  "compactWhenAwayEnabled": true,
   "compactWhenAwayThresholdKind": "count",
   "compactWhenAwayThresholdTokens": 128000,
   "compactWhenAwayThresholdRatio": 0.7,
@@ -83,7 +83,8 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 旧的 `pi-enhance-patches-asks.json` 和 `pi-enhance-patches-compact.json` 仍作为兼容来源读取，
 仅补充统一配置中未设置的对应字段；统一配置的值优先，包括 `false` 和 `0`。
 保存菜单后，当前设置全部写入统一文件，不再写入旧文件；旧文件保留。
-损坏的统一配置使用默认值并提示，不通过旧文件开启自动超时/压缩，保存时也不会覆盖损坏文件。
+损坏的统一配置会提示并关闭自动超时/压缩，保存时也不会覆盖损坏文件。
+旧文件损坏时，对应自动功能也关闭，除非统一配置明确设置了它。
 
 `/permission` 继续用于会话内临时权限切换。原权限插件的持久规则仍由 `/permission-system` 管理。
 
@@ -137,7 +138,7 @@ RPC 和扩展发送的消息不做标记替换。
 ## 问卷闲置超时
 
 需要安装原问卷插件：`pi install npm:@juicesharp/rpiv-ask-user-question`。
-问卷插件与本包的加载顺序均可。默认关闭自动跳过；在 `/enhance-patches` 设置
+问卷插件与本包的加载顺序均可。默认闲置 60 秒后自动跳过；在 `/enhance-patches` 设置
 Questionnaire idle timeout，菜单以秒为单位，`0` 关闭。
 也可在统一配置 `pi-enhance-patches.json` 中设置：
 
@@ -148,7 +149,7 @@ Questionnaire idle timeout，菜单以秒为单位，`0` 关闭。
 ```
 
 表示闲置 60 秒后跳过。`0` 关闭；正数取整并限制为 1000–86400000ms。
-未配置或无效值关闭超时；损坏文件关闭超时并在启动时提示。
+未配置默认 60000ms；`0` 或无效值关闭超时，损坏文件关闭超时并在启动时提示。
 修改后执行 `/reload`，`/enhance-patches show` 查看配置。
 
 - 计时从问卷组件准备好开始，输入、编辑和切换选项会重新计时。
@@ -196,7 +197,7 @@ pi remove /Users/kevin/Desktop/cc_plugins/pi-enhance-patches-asks
 
 ## Compact When Away
 
-上下文达到阈值，整轮任务结束后空闲足够时间时自动压缩。默认关闭。
+上下文达到阈值，整轮任务结束后空闲足够时间时自动压缩。默认开启。
 
 ```text
 /enhance-patches       打开统一设置菜单
