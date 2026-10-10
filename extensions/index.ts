@@ -8,6 +8,7 @@ import { registerSubagentPatches } from "./gotgenes-pi-subagents/index.ts";
 import { registerCompactWhenAway } from "./compact-when-away/compact.ts";
 import { loadConfig } from "./config.ts";
 import { registerSettings } from "./settings.ts";
+import { registerCustomOverlayClose } from "./pi-custom-overlay/overlay-close.ts";
 
 export default function enhancePatches(pi: ExtensionAPI): void {
   const path = join(getAgentDir(), "pi-enhance-patches.json");
@@ -17,6 +18,7 @@ export default function enhancePatches(pi: ExtensionAPI): void {
     else console.error(warning);
   });
   registerPermissionSystemPatches(pi);
+  registerCustomOverlayClose(pi);
   registerAskUserQuestionPatches(pi, config);
   registerImagePastePatches(pi, config.imagePasteEnabled);
   registerBackgroundTaskPatches(pi, config.backgroundTaskAutopatchEnabled);

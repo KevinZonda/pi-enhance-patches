@@ -3,7 +3,7 @@
 Pi 及第三方扩展的独立增强包。
 图片、权限与问卷使用运行时包装，不修改目标源码；后台任务目录使用启动 autopatcher，
 会在满足条件时修改已安装插件的文件，补丁也可手动应用，见 [`patches/README.md`](patches/README.md)。
-包含图片粘贴占位标记、临时权限模式、问卷闲置超时、后台任务全局缓存目录与 Compact When Away。
+包含图片粘贴占位标记、临时权限模式、问卷闲置超时、自定义浮层关闭修复、后台任务全局缓存目录与 Compact When Away。
 另提供实验性的 `@gotgenes/pi-subagents 23.4.0` 旧通知补丁：隔离跨 resume 通知，
 避免 settled 时整批通知进入 Pi 后无法撤回；保留正常自动唤醒。
 支持默认关闭的启动 autopatcher，也可手动 Apply/Revert，限制见 [`patches/README.md`](patches/README.md)。
@@ -107,12 +107,28 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 图片模块位于 `extensions/pi-image-paste/`，目录 autopatcher 位于 `extensions/pi-background-tasks/`。
 通知 autopatcher 位于 `extensions/gotgenes-pi-subagents/`，与目录 autopatcher 复用安装补丁预检。
 空闲压缩模块位于 `extensions/compact-when-away/`，使用 Pi 原生压缩接口，无需第三方插件。
+原生浮层关闭修复位于 `extensions/pi-custom-overlay/`，无需第三方插件。
 
 通过会话 service 接入共享的配置与审批实例，依赖 permission-system 的内部结构。
 升级原插件后需要重新验证。
 指定参数却找不到兼容实例时，会提示错误并阻止工具调用。
 退出及 `/reload` 时恢复被包装的方法；所有权检查避免旧补丁撤销新实例。
 补丁仅绕过原来的 ask，不绕过明确 deny。
+
+## 自定义浮层关闭修复
+
+默认启用，包装 Pi 1.1.0 的 `ctx.ui.custom()` 原生关闭流程。
+关闭 overlay 时只移除该窗口自己的句柄，保留其他浮层及其焦点；非 overlay 对话框使用原行为。
+退出及 `/reload` 恢复原方法，重复加载和旧实例清理不会撤销新包装。
+
+原流程关闭栈顶浮层：当 shell 上面还有另一个浮层时，可能关错窗口，却清理了 shell 自身，
+导致终端画面残留、倒计时冻结、Enter/Ctrl+T/焦点快捷键失效。
+本修复覆盖 `pi-interactive-shell` 的新窗口和重新附着窗口，也适用于其他调用原生接口的浮层。
+组件尚未挂载就完成时，不移除现有窗口。关闭回调重复执行仍由 Pi 原生逻辑处理。
+
+只做运行时包装，不修改 Pi 或 shell 插件的安装文件。升级 Pi 后需要重新验证。
+已卡住的旧浮层需重启会话；修复在重新加载本包后的新窗口生效。
+复现、主屏/全屏验证和证据边界见 [`poc/INTERACTIVE-SHELL-STALE-OVERLAY.md`](poc/INTERACTIVE-SHELL-STALE-OVERLAY.md)。
 
 ## 图片粘贴占位标记
 
