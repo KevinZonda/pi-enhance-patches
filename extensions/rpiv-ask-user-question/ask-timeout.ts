@@ -1,5 +1,6 @@
 import { ExtensionRunner, type ExtensionToolContext, type RegisteredTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { OverlayHandle } from "@earendil-works/pi-tui";
+import { closeOverlay } from "../pi-custom-overlay/close-overlay.ts";
 
 type Execute = ToolDefinition["execute"];
 type Result = Awaited<ReturnType<Execute>>;
@@ -58,12 +59,7 @@ export function wrapAskExecute(original: Execute, timeoutMs: number, pending: Se
         // Pi 1.1.0's close() calls hideOverlay(), which removes the top entry.
         // For cancellation during shutdown/abort, close this exact handle even
         // when another dialog is above it. Override only during synchronous done().
-        const descriptor = Object.getOwnPropertyDescriptor(tui, "hideOverlay");
-        tui.hideOverlay = () => handle!.hide();
-        try { complete(result); } finally {
-          if (descriptor) Object.defineProperty(tui, "hideOverlay", descriptor);
-          else delete (tui as unknown as { hideOverlay?: unknown }).hideOverlay;
-        }
+        closeOverlay(tui, handle, () => complete(result));
       };
       if (settled) { finish({ answers: [], cancelled: true }); return { render: () => [], invalidate() {} }; }
       // rpiv's external editor stops/starts this TUI. Pause only this dialog's

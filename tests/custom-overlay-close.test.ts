@@ -4,11 +4,12 @@ import { setTimeout as delay } from "node:timers/promises";
 import { InteractiveMode, initTheme } from "@earendil-works/pi-coding-agent";
 import { TuiAltScreen, TuiMainScreen, type OverlayHandle } from "@earendil-works/pi-tui";
 import { KeybindingsManager } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/keybindings.js";
+import { createInteractiveTuiReference } from "../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/tui-renderer.js";
 import { installCustomOverlayClose, registerCustomOverlayClose, type CustomOverlayHost } from "../extensions/pi-custom-overlay/overlay-close.ts";
 
 initTheme("dark");
 
-function fixture(fullscreen = false) {
+function fixture(fullscreen = false, useReference = true) {
   const terminal: any = {
     columns: 120, rows: 40, kittyProtocolActive: true,
     start() {}, stop() {}, write() {}, hideCursor() {}, showCursor() {},
@@ -20,7 +21,8 @@ function fixture(fullscreen = false) {
   tui.addChild(editor);
   tui.setFocus(editor);
   const host = Object.assign(Object.create(InteractiveMode.prototype), {
-    ui: tui, editor, keybindings: new KeybindingsManager(),
+    ui: useReference ? createInteractiveTuiReference(() => tui) : tui,
+    editor, keybindings: new KeybindingsManager(),
     editorContainer: { clear() {}, addChild() {} },
   }) as CustomOverlayHost;
   const original = host.showExtensionCustom;
@@ -29,32 +31,34 @@ function fixture(fullscreen = false) {
 }
 
 for (const fullscreen of [false, true]) {
-  test(`${fullscreen ? "fullscreen" : "main"}: close underlying overlay and preserve covering dialog/focus`, async () => {
-    const h = fixture(fullscreen);
-    let done!: (value: string) => void;
-    let disposed = 0;
-    let onHandleCalls = 0;
-    const shell = { render: () => ["Shell"], invalidate() {}, dispose() { disposed++; } };
-    const options = { overlay: true, overlayOptions: () => ({ width: "80%" as const }), onHandle(handle: OverlayHandle) { onHandleCalls++; handle.focus(); } };
-    try {
-      const response = h.host.showExtensionCustom<string>((_tui, _theme, _keys, close) => { done = close; return shell; }, options);
-      await delay(0);
-      assert.equal(onHandleCalls, 1);
-      assert.equal(h.tui.getFocusedComponent(), shell);
-      const cover = { render: () => ["Cover"], invalidate() {} };
-      const coverHandle = h.tui.showOverlay(cover);
-      done("exited"); done("duplicate");
-      assert.equal(await response, "exited");
-      assert.equal(disposed, 1);
-      assert.equal(h.tui.getFocusedComponent(), cover);
-      assert.equal(h.tui.hasOverlayEntries, true);
-      coverHandle.hide();
-      assert.equal(h.tui.hasOverlayEntries, false, "no underlying stale shell");
-      assert.equal(h.tui.getFocusedComponent(), h.editor);
-      assert.equal(Object.hasOwn(h.tui, "hideOverlay"), false);
-      assert.equal(options.onHandle instanceof Function, true);
-    } finally { h.restore(); }
-  });
+  for (const useReference of [false, true]) {
+    test(`${fullscreen ? "fullscreen" : "main"}, ${useReference ? "Proxy" : "raw"}: close underlying overlay and preserve covering dialog/focus`, async () => {
+      const h = fixture(fullscreen, useReference);
+      let done!: (value: string) => void;
+      let disposed = 0;
+      let onHandleCalls = 0;
+      const shell = { render: () => ["Shell"], invalidate() {}, dispose() { disposed++; } };
+      const options = { overlay: true, overlayOptions: () => ({ width: "80%" as const }), onHandle(handle: OverlayHandle) { onHandleCalls++; handle.focus(); } };
+      try {
+        const response = h.host.showExtensionCustom<string>((_tui, _theme, _keys, close) => { done = close; return shell; }, options);
+        await delay(0);
+        assert.equal(onHandleCalls, 1);
+        assert.equal(h.tui.getFocusedComponent(), shell);
+        const cover = { render: () => ["Cover"], invalidate() {} };
+        const coverHandle = h.tui.showOverlay(cover);
+        done("exited"); done("duplicate");
+        assert.equal(await response, "exited");
+        assert.equal(disposed, 1);
+        assert.equal(h.tui.getFocusedComponent(), cover);
+        assert.equal(h.tui.hasOverlayEntries, true);
+        coverHandle.hide();
+        assert.equal(h.tui.hasOverlayEntries, false, "no underlying stale shell");
+        assert.equal(h.tui.getFocusedComponent(), h.editor);
+        assert.equal(Object.hasOwn(h.tui, "hideOverlay"), false);
+        assert.equal(options.onHandle instanceof Function, true);
+      } finally { h.restore(); }
+    });
+  }
 }
 
 for (const asynchronous of [false, true]) {

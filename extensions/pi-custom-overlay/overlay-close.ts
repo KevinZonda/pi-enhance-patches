@@ -1,5 +1,6 @@
 import { InteractiveMode, type ExtensionAPI, type ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import type { OverlayHandle } from "@earendil-works/pi-tui";
+import { closeOverlay } from "./close-overlay.ts";
 
 type Custom = ExtensionUIContext["custom"];
 export interface CustomOverlayHost { showExtensionCustom: Custom }
@@ -22,12 +23,7 @@ export function installCustomOverlayClose(
     return original.call(this, (tui, theme, keys, done) => factory(tui, theme, keys, result => {
       // Only intercept the synchronous native close; leave all other TUI calls intact.
       // Before mount, native close must not remove an unrelated existing overlay.
-      const descriptor = Object.getOwnPropertyDescriptor(tui, "hideOverlay");
-      tui.hideOverlay = () => handle?.hide();
-      try { done(result); } finally {
-        if (descriptor) Object.defineProperty(tui, "hideOverlay", descriptor);
-        else delete (tui as unknown as { hideOverlay?: unknown }).hideOverlay;
-      }
+      closeOverlay(tui, handle, () => done(result));
     }), {
       ...options,
       onHandle(next) { handle = next; options.onHandle?.(next); },

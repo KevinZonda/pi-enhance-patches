@@ -1,0 +1,266 @@
+{
+  "controlledPoC": [
+    {
+      "mode": "main",
+      "patch": "none",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    },
+    {
+      "mode": "main",
+      "patch": "custom",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": true,
+      "leaked": true,
+      "unrelatedNativeHideStuck": true,
+      "unwrappedQuestionnaireReturnedButStuck": true
+    },
+    {
+      "mode": "main",
+      "patch": "timeout",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": true,
+      "leaked": true,
+      "unrelatedNativeHideStuck": true,
+      "unwrappedQuestionnaireReturnedButStuck": true
+    },
+    {
+      "mode": "main",
+      "patch": "both",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": true,
+      "leaked": true,
+      "unrelatedNativeHideStuck": true,
+      "unwrappedQuestionnaireReturnedButStuck": true
+    },
+    {
+      "mode": "fullscreen",
+      "patch": "none",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    },
+    {
+      "mode": "fullscreen",
+      "patch": "custom",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": true,
+      "leaked": true,
+      "unrelatedNativeHideStuck": true,
+      "unwrappedQuestionnaireReturnedButStuck": true
+    },
+    {
+      "mode": "fullscreen",
+      "patch": "timeout",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": true,
+      "leaked": true,
+      "unrelatedNativeHideStuck": true,
+      "unwrappedQuestionnaireReturnedButStuck": true
+    },
+    {
+      "mode": "fullscreen",
+      "patch": "both",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": true,
+      "leaked": true,
+      "unrelatedNativeHideStuck": true,
+      "unwrappedQuestionnaireReturnedButStuck": true
+    }
+  ],
+  "actualCliEvidence": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-_rledf04",
+  "actualCliDelayedSamples": [
+    {
+      "phase": "close+2000ms",
+      "hasOverlayEntries": false,
+      "hasOverlay": false,
+      "focus": "CustomEditor",
+      "renderRequested": false,
+      "stopped": false,
+      "referenceHasOwnHideOverlay": false,
+      "rendererHasOwnHideOverlay": true,
+      "questionnairePainted": false
+    },
+    {
+      "phase": "close+2000ms",
+      "hasOverlayEntries": false,
+      "hasOverlay": false,
+      "focus": "CustomEditor",
+      "renderRequested": false,
+      "stopped": false,
+      "referenceHasOwnHideOverlay": false,
+      "rendererHasOwnHideOverlay": true,
+      "questionnairePainted": false
+    },
+    {
+      "phase": "close+2000ms",
+      "hasOverlayEntries": false,
+      "hasOverlay": false,
+      "focus": "CustomEditor",
+      "renderRequested": false,
+      "stopped": false,
+      "referenceHasOwnHideOverlay": false,
+      "rendererHasOwnHideOverlay": true,
+      "questionnairePainted": false
+    },
+    {
+      "phase": "close+2000ms",
+      "hasOverlayEntries": false,
+      "hasOverlay": false,
+      "focus": "CustomEditor",
+      "renderRequested": false,
+      "stopped": false,
+      "referenceHasOwnHideOverlay": false,
+      "rendererHasOwnHideOverlay": true,
+      "questionnairePainted": false
+    },
+    {
+      "phase": "close+2000ms",
+      "hasOverlayEntries": false,
+      "hasOverlay": false,
+      "focus": "CustomEditor",
+      "renderRequested": false,
+      "stopped": false,
+      "referenceHasOwnHideOverlay": false,
+      "rendererHasOwnHideOverlay": true,
+      "questionnairePainted": false
+    }
+  ],
+  "fixedControlledPoC": [
+    {
+      "mode": "main",
+      "patch": "none",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    },
+    {
+      "mode": "main",
+      "patch": "custom",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    },
+    {
+      "mode": "main",
+      "patch": "timeout",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    },
+    {
+      "mode": "main",
+      "patch": "both",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    },
+    {
+      "mode": "fullscreen",
+      "patch": "none",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    },
+    {
+      "mode": "fullscreen",
+      "patch": "custom",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    },
+    {
+      "mode": "fullscreen",
+      "patch": "timeout",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    },
+    {
+      "mode": "fullscreen",
+      "patch": "both",
+      "initialSubmitClosed": true,
+      "referenceHasOwnHide": false,
+      "rendererHasOwnHide": false,
+      "leaked": false,
+      "unrelatedNativeHideStuck": false,
+      "unwrappedQuestionnaireReturnedButStuck": false
+    }
+  ],
+  "fixedActualCliRuns": [
+    {
+      "evidenceDirectory": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-_zl16cq0",
+      "arguments": {
+        "mode": "fullscreen",
+        "timeout_ms": 60000,
+        "minimal": false,
+        "no_observer": false,
+        "columns": 120,
+        "rows": 40,
+        "stream_followup": false,
+        "resize_on_submit": false
+      },
+      "submissions": 5,
+      "rendererMethodRestored": true,
+      "persistentResidual": false,
+      "editorPingPassed": true
+    },
+    {
+      "evidenceDirectory": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-bua34y13",
+      "arguments": {
+        "mode": "fullscreen",
+        "timeout_ms": 0,
+        "minimal": false,
+        "no_observer": false,
+        "columns": 120,
+        "rows": 40,
+        "stream_followup": true,
+        "resize_on_submit": true
+      },
+      "submissions": 5,
+      "rendererMethodRestored": true,
+      "persistentResidual": false,
+      "editorPingPassed": true
+    }
+  ],
+  "fixValidation": {
+    "testsPassed": 95,
+    "typecheckPassed": true,
+    "oldCodeFailsNewRegression": true,
+    "installedCopyUpdated": true
+  }
+}

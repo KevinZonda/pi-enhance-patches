@@ -119,6 +119,8 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 
 默认启用，包装 Pi 1.1.0 的 `ctx.ui.custom()` 原生关闭流程。
 关闭 overlay 时只移除该窗口自己的句柄，保留其他浮层及其焦点；非 overlay 对话框使用原行为。
+临时关闭方法的替换与恢复作用于真实 renderer，兼容 Pi 的稳定 TUI Proxy，
+避免旧窗口的关闭函数残留后使原生关闭失效。
 退出及 `/reload` 恢复原方法，重复加载和旧实例清理不会撤销新包装。
 
 原流程关闭栈顶浮层：当 shell 上面还有另一个浮层时，可能关错窗口，却清理了 shell 自身，
@@ -127,7 +129,8 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 组件尚未挂载就完成时，不移除现有窗口。关闭回调重复执行仍由 Pi 原生逻辑处理。
 
 只做运行时包装，不修改 Pi 或 shell 插件的安装文件。升级 Pi 后需要重新验证。
-已卡住的旧浮层需重启会话；修复在重新加载本包后的新窗口生效。
+已卡住的旧浮层或被旧版本污染的 renderer 需重启 Pi；单独 `/reload` 不一定清除旧状态。
+Proxy 缺陷的复现与修复验证见 [`poc/ASK-PROXY-CLOSE.md`](poc/ASK-PROXY-CLOSE.md)。
 复现、主屏/全屏验证和证据边界见 [`poc/INTERACTIVE-SHELL-STALE-OVERLAY.md`](poc/INTERACTIVE-SHELL-STALE-OVERLAY.md)。
 
 ## 图片粘贴占位标记

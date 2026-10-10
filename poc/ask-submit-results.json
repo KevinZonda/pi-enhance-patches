@@ -1,0 +1,172 @@
+{
+  "testedOn": "2026-10-10",
+  "productionRepaintFixReverted": true,
+  "totalSubmissions": 35,
+  "runs": [
+    {
+      "scenario": "fullscreen/all/observer",
+      "evidenceDirectory": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-wqty08_7",
+      "arguments": {
+        "mode": "fullscreen",
+        "timeout_ms": 60000,
+        "minimal": false,
+        "no_observer": false,
+        "columns": 120,
+        "rows": 40
+      },
+      "submissions": 5,
+      "persistentResidual": false,
+      "editorPingPassed": true,
+      "answerCounts": [
+        2,
+        3,
+        4,
+        2,
+        2
+      ],
+      "observerDelayedSamplesClean": true
+    },
+    {
+      "scenario": "fullscreen-control",
+      "evidenceDirectory": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-ov7dvnwj",
+      "arguments": {
+        "mode": "fullscreen",
+        "timeout_ms": 60000,
+        "minimal": false,
+        "no_observer": true,
+        "columns": 120,
+        "rows": 40
+      },
+      "submissions": 5,
+      "persistentResidual": false,
+      "editorPingPassed": true,
+      "answerCounts": [
+        2,
+        3,
+        4,
+        2,
+        2
+      ],
+      "observerDelayedSamplesClean": null
+    },
+    {
+      "scenario": "main",
+      "evidenceDirectory": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-yzer1chu",
+      "arguments": {
+        "mode": "main",
+        "timeout_ms": 60000,
+        "minimal": false,
+        "no_observer": false,
+        "columns": 120,
+        "rows": 40
+      },
+      "submissions": 5,
+      "persistentResidual": false,
+      "editorPingPassed": true,
+      "answerCounts": [
+        2,
+        3,
+        4,
+        2,
+        2
+      ],
+      "observerDelayedSamplesClean": true
+    },
+    {
+      "scenario": "timeout-off",
+      "evidenceDirectory": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-bgfsaj7i",
+      "arguments": {
+        "mode": "fullscreen",
+        "timeout_ms": 0,
+        "minimal": false,
+        "no_observer": false,
+        "columns": 120,
+        "rows": 40
+      },
+      "submissions": 5,
+      "persistentResidual": false,
+      "editorPingPassed": true,
+      "answerCounts": [
+        2,
+        3,
+        4,
+        2,
+        2
+      ],
+      "observerDelayedSamplesClean": true
+    },
+    {
+      "scenario": "minimal",
+      "evidenceDirectory": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-jylbfceg",
+      "arguments": {
+        "mode": "fullscreen",
+        "timeout_ms": 60000,
+        "minimal": true,
+        "no_observer": false,
+        "columns": 100,
+        "rows": 24
+      },
+      "submissions": 5,
+      "persistentResidual": false,
+      "editorPingPassed": true,
+      "answerCounts": [
+        2,
+        3,
+        4,
+        2,
+        2
+      ],
+      "observerDelayedSamplesClean": true
+    },
+    {
+      "scenario": "stream-resize",
+      "evidenceDirectory": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-c94izlao",
+      "arguments": {
+        "mode": "fullscreen",
+        "timeout_ms": 60000,
+        "minimal": false,
+        "no_observer": false,
+        "columns": 120,
+        "rows": 40,
+        "stream_followup": true,
+        "resize_on_submit": true
+      },
+      "submissions": 5,
+      "persistentResidual": false,
+      "editorPingPassed": true,
+      "answerCounts": [
+        2,
+        3,
+        4,
+        2,
+        2
+      ],
+      "observerDelayedSamplesClean": true
+    },
+    {
+      "scenario": "main-stream",
+      "evidenceDirectory": "/var/folders/gl/fdb2hp6d7g39741y8_4rfm3m0000gn/T/pi-local-ask-poc-tjtv1mph",
+      "arguments": {
+        "mode": "main",
+        "timeout_ms": 60000,
+        "minimal": false,
+        "no_observer": false,
+        "columns": 120,
+        "rows": 40,
+        "stream_followup": true,
+        "resize_on_submit": false
+      },
+      "submissions": 5,
+      "persistentResidual": false,
+      "editorPingPassed": true,
+      "answerCounts": [
+        2,
+        3,
+        4,
+        2,
+        2
+      ],
+      "observerDelayedSamplesClean": true
+    }
+  ]
+}
