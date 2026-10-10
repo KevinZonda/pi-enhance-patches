@@ -184,3 +184,27 @@ PI_SUBAGENTS_TEST_DIR=/path/to/original/package node --test tests/subagent-notif
 加载顺序测试用 service/tool 替身；不等同于真实目标插件的整套初始化。所有写入仅发生在临时安装副本。
 
 没有目标版本时测试明确 skipped。尚未覆盖真实模型 Goal + Subagent 端到端执行、真实子代理中断及跨重载恢复；补丁应先在非关键任务中试用。通知至少延迟一个 25ms 调度周期；忙碌但尚未收到 agent_start 时也会重新检查。插件升级/重装可能覆盖补丁，不要强制套用到其他版本。
+
+# pi-interactive-shell 0.17.0 cancellation patch
+
+`pi-interactive-shell-0.17.0-abort.patch` 修改 `index.ts`、`overlay-component.ts`、
+`headless-monitor.ts` 和 `session-manager.ts`，让工具取消信号结束限流查询或阻塞窗口等待。
+查询取消不杀对应进程；完成订阅可以退订，避免等待者和定时器残留。
+配合本包的原生浮层关闭包装使用。只支持默认 npm 安装的 0.17.0；启动时默认自动预检应用。
+
+手动 Apply（在 shell 插件安装目录执行，补丁路径替换为本仓库路径）：
+
+```sh
+git apply --check /path/to/pi-enhance-patches/patches/pi-interactive-shell-0.17.0-abort.patch
+git apply /path/to/pi-enhance-patches/patches/pi-interactive-shell-0.17.0-abort.patch
+```
+
+Revert 前先设置 `PI_ENHANCE_INTERACTIVE_SHELL_AUTOPATCH=0`，避免启动时再次应用：
+
+```sh
+git apply --reverse --check /path/to/pi-enhance-patches/patches/pi-interactive-shell-0.17.0-abort.patch
+git apply --reverse /path/to/pi-enhance-patches/patches/pi-interactive-shell-0.17.0-abort.patch
+```
+
+Apply 或 Revert 后等当前任务结束，再 `/reload` 或重启 Pi。
+具体复现和边界见 [`../poc/INTERACTIVE-SHELL-ABORT.md`](../poc/INTERACTIVE-SHELL-ABORT.md)。

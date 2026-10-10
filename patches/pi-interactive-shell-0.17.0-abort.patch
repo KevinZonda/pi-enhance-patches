@@ -1,0 +1,242 @@
+diff --git a/index.ts b/index.ts
+index 96e8a13..59e0d53 100644
+--- a/index.ts
++++ b/index.ts
+@@ -54,6 +54,79 @@ import { classifySemanticEvents } from "./semantic-events.ts";
+ import { SEMANTIC_SAFE_ID, SEMANTIC_THRESHOLDS } from "./semantic-policy.ts";
+ import { createSemanticDiagnosticsSession, getSemanticDiagnosticRunId, recordSemanticIncident, summarizeSemanticDiagnostics, type SemanticDeliveryDiagnostic, type SemanticDiagnosticEventType } from "./semantic-diagnostics.ts";
+ 
++
++/** Wait without retaining a timer, completion callback, or abort listener after cancellation. */
++export function waitForSessionCompletion(session: ActiveSession, waitMs: number, signal?: AbortSignal): Promise<boolean> {
++	signal?.throwIfAborted();
++	return new Promise((resolve, reject) => {
++		let settled = false;
++		let unsubscribe: (() => void) | void;
++		const cleanup = () => {
++			clearTimeout(timer);
++			signal?.removeEventListener("abort", aborted);
++			unsubscribe?.();
++		};
++		const finish = (completed: boolean) => {
++			if (settled) return;
++			settled = true;
++			cleanup();
++			resolve(completed);
++		};
++		const aborted = () => {
++			if (settled) return;
++			settled = true;
++			cleanup();
++			reject(new DOMException("interactive_shell cancelled", "AbortError"));
++		};
++		const timer = setTimeout(() => finish(false), waitMs);
++		signal?.addEventListener("abort", aborted, { once: true });
++		try { unsubscribe = session.onComplete(() => finish(true)); }
++		catch (error) { settled = true; cleanup(); reject(error); return; }
++		if (settled) unsubscribe?.();
++		else if (signal?.aborted) aborted();
++	});
++}
++
++/** Scope cancellation to UI still awaited by this tool call, not completed non-blocking launches. */
++function abortableToolContext(ctx: ExtensionContext, signal?: AbortSignal): { ctx: ExtensionContext; dispose(): void } {
++	if (!signal) return { ctx, dispose() {} };
++	const cancellations = new Set<() => void>();
++	const aborted = () => { for (const cancel of [...cancellations]) cancel(); };
++	signal.addEventListener("abort", aborted, { once: true });
++	const ui = Object.create(ctx.ui) as ExtensionUIContext;
++	ui.confirm = (title, message, options) => ctx.ui.confirm(title, message, { ...options, signal });
++	ui.select = (title, items, options) => ctx.ui.select(title, items, { ...options, signal });
++	ui.custom = ((factory, options) => ctx.ui.custom((tui, theme, keys, done) => {
++		signal.throwIfAborted();
++		let closed = false;
++		let cancel: (() => void) | undefined;
++		const complete = (result: Parameters<typeof done>[0]) => {
++			if (closed) return;
++			closed = true;
++			if (cancel) cancellations.delete(cancel);
++			done(result);
++		};
++		const register = (component: Awaited<ReturnType<typeof factory>>) => {
++			cancel = () => {
++				if (closed) return;
++				const shell = component as typeof component & { killSession?: () => void };
++				try {
++					if (typeof shell.killSession === "function") shell.killSession();
++					else complete({ exitCode: null, backgrounded: false, cancelled: true } as Parameters<typeof done>[0]);
++				} catch { complete({ exitCode: null, backgrounded: false, cancelled: true } as Parameters<typeof done>[0]); }
++			};
++			if (!closed) cancellations.add(cancel);
++			if (signal.aborted) cancel();
++			return component;
++		};
++		const component = factory(tui, theme, keys, complete);
++		return component instanceof Promise ? component.then(register) : register(component);
++	}, options)) as ExtensionUIContext["custom"];
++	const scoped = Object.create(ctx) as ExtensionContext;
++	Object.defineProperty(scoped, "ui", { value: ui });
++	return { ctx: scoped, dispose() { signal.removeEventListener("abort", aborted); cancellations.clear(); } };
++}
++
+ const COORDINATOR_KEY = "__piInteractiveShellCoordinatorV1" as const;
+ const runtimeGlobal = globalThis as typeof globalThis & Partial<Record<typeof COORDINATOR_KEY, InteractiveShellCoordinator>>;
+ const retainedCoordinator = runtimeGlobal[COORDINATOR_KEY];
+@@ -972,6 +1045,7 @@ export default function interactiveShellExtension(pi: ExtensionAPI) {
+ 		}
+ 	};
+ 	const startNewSession = async (params: {
++		signal?: AbortSignal;
+ 		ctx: Pick<ExtensionContext, "ui" | "cwd" | "sessionManager" | "isProjectTrusted"> & { hasUI?: boolean };
+ 		command?: string;
+ 		spawn?: SpawnRequest;
+@@ -988,7 +1062,8 @@ export default function interactiveShellExtension(pi: ExtensionAPI) {
+ 		outputSelection?: ToolParams["outputSelection"];
+ 		onUpdate?: (update: { content: Array<{ type: "text"; text: string }>; details: Record<string, unknown> }) => void;
+ 	}): Promise<{ content: Array<{ type: "text"; text: string }>; details?: unknown; isError?: boolean }> => {
+-		const { ctx, command, spawn, cwd, name, reason, mode, background, handsFree, handoffPreview, handoffSnapshot, timeout, monitor, outputSelection, onUpdate } = params;
++		const { ctx, signal, command, spawn, cwd, name, reason, mode, background, handsFree, handoffPreview, handoffSnapshot, timeout, monitor, outputSelection, onUpdate } = params;
++		signal?.throwIfAborted();
+ 		const hasCommand = command !== undefined;
+ 		const hasSpawn = spawn !== undefined;
+ 		const allowsGeneratedCommand = mode === "monitor" && monitor?.strategy === "file-watch";
+@@ -1073,6 +1148,7 @@ export default function interactiveShellExtension(pi: ExtensionAPI) {
+ 		let launchAuthorized = false;
+ 		if (effectiveCommand) {
+ 			const authorization = await authorizeLaunchCommand(config, effectiveCommand, ctx);
++			signal?.throwIfAborted();
+ 			if (!authorization.allowed) return {
+ 				content: [{ type: "text", text: "Launch blocked by the global interactive-shell command policy." }],
+ 				isError: true,
+@@ -1118,6 +1194,7 @@ export default function interactiveShellExtension(pi: ExtensionAPI) {
+ 			}
+ 			if (!launchAuthorized) {
+ 				const authorization = await authorizeLaunchCommand(config, monitorCommand, ctx);
++				signal?.throwIfAborted();
+ 				if (!authorization.allowed) return {
+ 					content: [{ type: "text", text: "Launch blocked by the global interactive-shell command policy." }], isError: true,
+ 					details: { error: "launch_not_authorized", reason: authorization.reason },
+@@ -1525,10 +1602,16 @@ export default function interactiveShellExtension(pi: ExtensionAPI) {
+ 			}),
+ 		parameters: toolParameters,
+ 
+-		async execute(_toolCallId, params, _signal, onUpdate, ctx) {
+-			const result = await runTool(params, onUpdate, ctx);
+-			// AgentToolResult requires `details`; normalize the paths that produce none.
+-			return { content: result.content, details: result.details ?? {}, isError: result.isError };
++		async execute(_toolCallId, params, signal, onUpdate, ctx) {
++			signal?.throwIfAborted();
++			const scoped = abortableToolContext(ctx, signal);
++			try {
++				const result = await runTool(params, onUpdate, scoped.ctx, signal);
++				// AgentToolResult requires `details`; normalize the paths that produce none.
++				return { content: result.content, details: result.details ?? {}, isError: result.isError };
++			} finally {
++				scoped.dispose();
++			}
+ 		},
+ 	});
+ 
+@@ -1566,6 +1649,7 @@ export default function interactiveShellExtension(pi: ExtensionAPI) {
+ 		params: ToolParams,
+ 		onUpdate: ((update: { content: Array<{ type: "text"; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+ 		ctx: ExtensionContext,
++		signal?: AbortSignal,
+ 	): Promise<{ content: Array<{ type: "text"; text: string }>; details?: unknown; isError?: boolean }> {
+ 			const {
+ 				command,
+@@ -1996,10 +2080,7 @@ export default function interactiveShellExtension(pi: ExtensionAPI) {
+ 
+ 					if (outputResult.rateLimited && outputResult.waitSeconds) {
+ 						const waitMs = outputResult.waitSeconds * 1000;
+-						const completedEarly = await Promise.race([
+-							new Promise<false>((resolve) => setTimeout(() => resolve(false), waitMs)),
+-							new Promise<true>((resolve) => session.onComplete(() => resolve(true))),
+-						]);
++						const completedEarly = await waitForSessionCompletion(session, waitMs, signal);
+ 
+ 						if (completedEarly) {
+ 							const earlySession = sessionManager.getActive(sessionId);
+@@ -2274,6 +2355,7 @@ export default function interactiveShellExtension(pi: ExtensionAPI) {
+ 			}
+ 			return startNewSession({
+ 				ctx,
++				signal,
+ 				command,
+ 				spawn: spawnForAction,
+ 				cwd,
+diff --git a/overlay-component.ts b/overlay-component.ts
+index ae228b6..5d8f8b4 100644
+--- a/overlay-component.ts
++++ b/overlay-component.ts
+@@ -239,18 +239,22 @@ export class InteractiveShellOverlay implements Component, Focusable {
+ 	}
+ 
+ 	/** Register a callback to be called when session completes */
+-	registerCompleteCallback(callback: () => void): void {
++	registerCompleteCallback(callback: () => void): () => void {
+ 		// If already completed, call immediately
+ 		if (this.completionResult) {
+ 			callback();
+-			return;
++			return () => {};
+ 		}
+ 		this.completeCallbacks.push(callback);
++		return () => {
++			const index = this.completeCallbacks.indexOf(callback);
++			if (index >= 0) this.completeCallbacks.splice(index, 1);
++		};
+ 	}
+ 
+ 	/** Trigger all completion callbacks */
+ 	private triggerCompleteCallbacks(): void {
+-		for (const callback of this.completeCallbacks) {
++		for (const callback of [...this.completeCallbacks]) {
+ 			try {
+ 				callback();
+ 			} catch (error) {
+diff --git a/headless-monitor.ts b/headless-monitor.ts
+index 996be2c..8d2dd4f 100644
+--- a/headless-monitor.ts
++++ b/headless-monitor.ts
+@@ -406,12 +406,16 @@ export class HeadlessDispatchMonitor {
+ 		return this.result;
+ 	}
+ 
+-	registerCompleteCallback(callback: () => void): void {
++	registerCompleteCallback(callback: () => void): () => void {
+ 		if (this.result) {
+ 			callback();
+-			return;
++			return () => {};
+ 		}
+ 		this.completeCallbacks.push(callback);
++		return () => {
++			const index = this.completeCallbacks.indexOf(callback);
++			if (index >= 0) this.completeCallbacks.splice(index, 1);
++		};
+ 	}
+ 
+ 	pauseSemantic(): void { this.semanticSupervisor?.pause(); }
+@@ -434,7 +438,7 @@ export class HeadlessDispatchMonitor {
+ 	}
+ 
+ 	private triggerCompleteCallbacks(): void {
+-		for (const cb of this.completeCallbacks) {
++		for (const cb of [...this.completeCallbacks]) {
+ 			try {
+ 				cb();
+ 			} catch (error) {
+diff --git a/session-manager.ts b/session-manager.ts
+index de2755e..33d679a 100644
+--- a/session-manager.ts
++++ b/session-manager.ts
+@@ -66,7 +66,7 @@ export interface ActiveSession {
+ 	retainAfterCompletion?: boolean;
+ 	setUpdateInterval?: (intervalMs: number) => void;
+ 	setQuietThreshold?: (thresholdMs: number) => void;
+-	onComplete: (callback: () => void) => void;
++	onComplete: (callback: () => void) => (() => void) | void;
+ }
+ 
+ // Human-readable session slug generation

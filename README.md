@@ -108,6 +108,7 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 通知 autopatcher 位于 `extensions/gotgenes-pi-subagents/`，与目录 autopatcher 复用安装补丁预检。
 空闲压缩模块位于 `extensions/compact-when-away/`，使用 Pi 原生压缩接口，无需第三方插件。
 原生浮层关闭修复位于 `extensions/pi-custom-overlay/`，无需第三方插件。
+终端取消 autopatcher 位于 `extensions/pi-interactive-shell/`。
 
 通过会话 service 接入共享的配置与审批实例，依赖 permission-system 的内部结构。
 升级原插件后需要重新验证。
@@ -132,6 +133,29 @@ agent 执行过程中也可以切换，包括从 default 切换到临时模式�
 已卡住的旧浮层或被旧版本污染的 renderer 需重启 Pi；单独 `/reload` 不一定清除旧状态。
 Proxy 缺陷的复现与修复验证见 [`poc/ASK-PROXY-CLOSE.md`](poc/ASK-PROXY-CLOSE.md)。
 复现、主屏/全屏验证和证据边界见 [`poc/INTERACTIVE-SHELL-STALE-OVERLAY.md`](poc/INTERACTIVE-SHELL-STALE-OVERLAY.md)。
+
+## Interactive shell 取消修复
+
+启动时默认检测已加载的 `interactive_shell` 和默认 npm 安装的
+`pi-interactive-shell 0.17.0`，预检通过后应用
+`patches/pi-interactive-shell-0.17.0-abort.patch`。该补丁修改插件安装文件，
+首次应用后需等当前任务结束，再 `/reload` 或重启加载；不会自动中断任务。
+其他版本、源码不匹配、锁占用或不可写时跳过并提示。
+`PI_ENHANCE_INTERACTIVE_SHELL_AUTOPATCH=0` 禁用自动应用；设置菜单不控制此项。
+
+原插件忽略工具取消信号，导致 Pi 工作中按 Esc 后，输出查询仍可能继续等待限流计时器，
+阻塞式 attach 也可能继续等待终端窗口。补丁将取消信号传入这些等待：
+
+- 取消输出查询，立即结束等待并清理定时器、完成回调和取消监听器，保留会话进程。
+- 取消当前工具仍在等待的终端浮层，调用插件已有的 `killSession()` 并关闭该窗口。
+- 已经返回的非阻塞启动或 attach，不因旧工具调用后续被取消而停止。
+- 启动授权对话框接收取消信号；启动前已取消的调用不执行操作。
+
+Esc 必须到达 Pi 编辑器才会中断当前任务；`SHELL FOCUSED` 时仍发送给子进程，
+需先用配置的焦点快捷键（默认 Alt+Shift+F）切回编辑器。
+这不改变 shell 的快捷键布局，也不停止查询所对应的后台任务。
+进程清理沿用原插件的尽力终止行为，不保证外部进程或远端服务退出。
+复现命令、验证结果和限制见 [`poc/INTERACTIVE-SHELL-ABORT.md`](poc/INTERACTIVE-SHELL-ABORT.md)。
 
 ## 图片粘贴占位标记
 

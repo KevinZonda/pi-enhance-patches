@@ -4,5 +4,5 @@
     "allowImportingTsExtensions": true, "noEmit": true, "skipLibCheck": true,
     "strict": true, "types": ["node"]
   },
-  "include": ["extensions/**/*.ts", "tests/**/*.ts"]
+  "include": ["extensions/**/*.ts", "tests/**/*.ts", "poc/**/*.ts"]
 }
